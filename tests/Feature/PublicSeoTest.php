@@ -22,6 +22,38 @@ class PublicSeoTest extends TestCase
             ->assertSee('"@type":"EducationalOrganization"', false);
     }
 
+    public function test_footer_uses_semantic_navigation_and_social_links(): void
+    {
+        foreach ([
+            'identity.whatsapp' => '+6281234567890',
+            'identity.email' => 'info@smkislamiyahciputat.sch.id',
+            'identity.instagram' => 'https://instagram.com/smkislamiyahciputat',
+            'identity.facebook' => 'https://facebook.com/smkislamiyahciputat',
+            'identity.twitter' => 'https://x.com/smkislamiyahciputat',
+            'identity.youtube' => 'https://youtube.com/@smkislamiyahciputat',
+        ] as $key => $value) {
+            SiteSetting::query()->create([
+                'key' => $key,
+                'group' => explode('.', $key)[0],
+                'value' => json_encode($value, JSON_THROW_ON_ERROR),
+            ]);
+        }
+
+        $response = $this->get(route('home'));
+
+        $response->assertOk()
+            ->assertSee('aria-label="Navigasi utama footer"', false)
+            ->assertSee('aria-label="Program keahlian footer"', false)
+            ->assertSee('aria-label="Kontak dan media sosial sekolah"', false)
+            ->assertSee('aria-label="WhatsApp"', false)
+            ->assertSee('aria-label="Email sekolah"', false)
+            ->assertSee('aria-label="Instagram"', false)
+            ->assertSee('aria-label="Facebook"', false)
+            ->assertSee('aria-label="X / Twitter"', false)
+            ->assertSee('aria-label="YouTube"', false)
+            ->assertDontSee('Kebijakan Privasi', false);
+    }
+
     public function test_about_page_shows_vision_mission_and_gallery_empty_states_when_content_is_missing(): void
     {
         $response = $this->get(route('about'));
@@ -132,5 +164,30 @@ class PublicSeoTest extends TestCase
             ->assertSee(route('program.show', $publishedProgram->slug), false)
             ->assertSee(route('news.show', $publishedNews->slug), false)
             ->assertDontSee(route('news.show', 'berita-draft-seo'), false);
+    }
+
+    public function test_robots_file_blocks_admin_and_lists_sitemap(): void
+    {
+        $response = $this->get('/robots.txt');
+
+        $response->assertOk()
+            ->assertSee('Disallow: /adminsmkiciputat/')
+            ->assertSee('Sitemap: '.rtrim(config('app.url'), '/').'/sitemap.xml');
+    }
+
+    public function test_ga_and_search_console_metadata_are_loaded_when_configured(): void
+    {
+        putenv('GOOGLE_SITE_VERIFICATION=example-verification');
+        putenv('GA_MEASUREMENT_ID=G-TEST123');
+
+        $response = $this->get(route('home'));
+
+        $response->assertOk()
+            ->assertSee('meta name="google-site-verification" content="example-verification"', false)
+            ->assertSee('googletagmanager.com/gtag/js?id=G-TEST123', false)
+            ->assertSee("gtag('config', 'G-TEST123')", false);
+
+        putenv('GOOGLE_SITE_VERIFICATION');
+        putenv('GA_MEASUREMENT_ID');
     }
 }

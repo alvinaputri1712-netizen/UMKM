@@ -16,6 +16,13 @@ use App\Http\Controllers\Public\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+Route::get('/robots.txt', function () {
+    $baseUrl = rtrim(config('app.url', 'https://example.com'), '/');
+
+    return response()
+        ->view('robots', ['baseUrl' => $baseUrl])
+        ->header('Content-Type', 'text/plain; charset=UTF-8');
+})->name('robots');
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 
 Route::get('/program/kuliner', [ProgramController::class, 'legacy'])->defaults('programKey', 'kuliner')->name('program.kuliner');
@@ -34,6 +41,7 @@ Route::get('/bkk/lowongan-pekerjaan', [ContentController::class, 'jobs'])->name(
 Route::get('/bkk/tracer-study', [ContentController::class, 'tracerStudy'])->name('bkk.tracer-study');
 Route::get('/spmb', [ContentController::class, 'spmb'])->name('spmb');
 Route::get('/tentang-kami/informasi-sekolah', [ContentController::class, 'about'])->name('about');
+Route::view('/kebijakan-privasi', 'pages.privacy-policy')->name('privacy');
 
 Route::prefix('adminsmkiciputat')->name('admin.')->group(function (): void {
     Route::get('/', [AdminLoginController::class, 'create'])->name('login');

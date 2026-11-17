@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 $settingFields = [
     'identity' => [
@@ -9,6 +9,7 @@ $settingFields = [
         'email' => ['Email sekolah', 'email'],
         'instagram' => ['Link Instagram', 'url'],
         'facebook' => ['Link Facebook', 'url'],
+        'twitter' => ['Link X / Twitter', 'url'],
         'youtube' => ['Link YouTube', 'url'],
         'logo' => ['Logo sekolah', 'image'],
         'favicon' => ['Favicon', 'image'],
@@ -130,6 +131,8 @@ $settingFields = [
         'keywords' => ['Meta keywords', 'text'],
         'og_image' => ['Open Graph image', 'image'],
         'canonical_url' => ['Canonical URL', 'url'],
+        'google_site_verification' => ['Google Search Console verification', 'text'],
+        'ga_measurement_id' => ['Google Analytics Measurement ID', 'text'],
         'robots' => ['Robots (contoh: index,follow)', 'text'],
     ],
 ];
@@ -142,6 +145,7 @@ $defaults = [
     'identity.email' => '',
     'identity.instagram' => '',
     'identity.facebook' => '',
+    'identity.twitter' => '',
     'identity.youtube' => '',
     'identity.logo' => '/images/logo/logo.PNG',
     'identity.favicon' => '/favicon.ico',
@@ -247,12 +251,13 @@ $defaults = [
     'seo.keywords' => '',
     'seo.og_image' => '',
     'seo.canonical_url' => '',
+    'seo.google_site_verification' => '',
+    'seo.ga_measurement_id' => '',
     'seo.robots' => 'index,follow',
 ];
 
 $sections = [
     'identity' => 'Identitas Website',
-    'navbar' => 'Navbar',
     'home' => 'Homepage',
     'about' => 'Tentang Kami',
     'teachers' => 'Tenaga Kependidikan',
@@ -262,11 +267,34 @@ $sections = [
     'seo' => 'SEO',
 ];
 
+$simpleHomeFields = [
+    'hero.title',
+    'hero.description',
+    'hero.image',
+    'hero.primary_label',
+    'hero.primary_url',
+    'about.heading',
+    'about.paragraph_1',
+    'about.image',
+    'news.heading',
+    'news.description',
+    'bkk.heading',
+    'bkk.description',
+    'admissions.heading',
+    'admissions.description',
+];
+
 $fields = [];
 
 foreach ($settingFields as $section => $sectionFields) {
     foreach ($sectionFields as $key => [$label, $type]) {
-        $fields[$section.'.'.$key] = [
+        $fullKey = $section.'.'.$key;
+
+        if ($section === 'home' && ! in_array($key, $simpleHomeFields, true)) {
+            continue;
+        }
+
+        $fields[$fullKey] = [
             'label' => $label,
             'type' => $type,
             'section' => $section,
@@ -370,3 +398,4 @@ return [
         ['#46534c', '#e9ede9'],
     ],
 ];
+

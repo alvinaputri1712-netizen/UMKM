@@ -57,10 +57,6 @@
                     <i class="admin-nav-icon" data-lucide="hard-drive" aria-hidden="true"></i>
                     <span class="admin-nav-label">Media Manager</span>
                 </a>
-                <a href="{{ route('admin.settings.index') }}" title="Pengaturan Website" class="admin-nav-link {{ request()->routeIs('admin.settings.*') ? 'is-active' : '' }}">
-                    <i class="admin-nav-icon" data-lucide="settings-2" aria-hidden="true"></i>
-                    <span class="admin-nav-label">Pengaturan Website</span>
-                </a>
             @endif
             @if (auth('admin')->user()?->isSuperAdmin())
                 <a href="{{ route('admin.admins.index') }}" title="Manajemen Admin" class="admin-nav-link {{ request()->routeIs('admin.admins.*') ? 'is-active' : '' }}">

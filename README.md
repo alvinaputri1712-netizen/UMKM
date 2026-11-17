@@ -51,6 +51,39 @@ The admin panel does not provide public self-registration. Accounts are created 
 
 For local/testing, when no admin account exists, the login page offers a one-time **Pendaftaran Superadmin pertama** link. After registration, the form closes and the new account is signed in. In production, create the initial Superadmin with `php artisan admin:create` instead. Once a Superadmin exists, the command only offers Admin and Editor roles; additional accounts should be created in the panel.
 
+## SEO, Search Console, and Analytics setup
+
+This project includes dynamic meta tags, canonical URLs, OG/Twitter metadata, sitemap generation, and structured data for public pages. For production deployment, set the base domain in `APP_URL` and optionally the following values in `.env`:
+
+```env
+APP_URL=https://www.smkislamiyahciputat.sch.id
+GOOGLE_SITE_VERIFICATION=your-google-site-verification-code
+GA_MEASUREMENT_ID=G-XXXXXXXXXX
+```
+
+### Google Search Console
+
+1. Add a new Domain property in Google Search Console.
+2. Copy the TXT verification value from Google.
+3. Set it as `GOOGLE_SITE_VERIFICATION` in the production `.env` file.
+4. Add the TXT record in your Rumahweb DNS settings.
+5. Verify the domain and submit the production `https://www.smkislamiyahciputat.sch.id/sitemap.xml` URL.
+6. Monitor indexing and coverage reports.
+
+### Google Analytics 4
+
+1. Create or open a Google Analytics account and add a web data stream.
+2. Copy the GA4 Measurement ID (for example `G-XXXXXXXXXX`).
+3. Add it as `GA_MEASUREMENT_ID` in the production `.env` file.
+4. Keep the tracking code enabled only when the ID is set; the layout will not emit the script otherwise.
+5. Validate traffic in the Realtime and DebugView reports after the site is live.
+
+### Robots and sitemap
+
+- The site exposes `/sitemap.xml` for public pages and published content.
+- `/adminsmkiciputat` and the login routes are blocked from crawling.
+- `/robots.txt` is generated from the application configuration and the production base URL.
+
 ## Contributing
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).

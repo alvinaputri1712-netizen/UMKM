@@ -12,6 +12,8 @@
         $pageImage = $pageImage ? url($pageImage) : null;
         $pageType = trim($__env->yieldContent('meta_type')) ?: 'website';
         $pageCanonical = trim($__env->yieldContent('canonical_url'));
+        $googleSiteVerification = trim((string) env('GOOGLE_SITE_VERIFICATION', $siteSettings['seo.google_site_verification'] ?? ''));
+        $gaMeasurementId = trim((string) env('GA_MEASUREMENT_ID', $siteSettings['seo.ga_measurement_id'] ?? ''));
 
         if ($pageCanonical === '') {
             $pageCanonical = request()->routeIs('home') && filled($siteSettings['seo.canonical_url'])
@@ -23,6 +25,7 @@
         $schoolProfiles = array_values(array_filter([
             $siteSettings['identity.instagram'],
             $siteSettings['identity.facebook'],
+            $siteSettings['identity.twitter'],
             $siteSettings['identity.youtube'],
         ]));
         $schoolSchema = [
@@ -62,6 +65,9 @@
     <meta name="description" content="{{ $pageDescription }}">
     <meta name="keywords" content="{{ $siteSettings['seo.keywords'] }}">
     <meta name="robots" content="{{ $siteSettings['seo.robots'] }}">
+    @if (filled($googleSiteVerification))
+        <meta name="google-site-verification" content="{{ $googleSiteVerification }}">
+    @endif
     <link rel="canonical" href="{{ $pageCanonical }}">
     @if ($siteSettings['identity.favicon'])
         <link rel="icon" href="{{ $siteConfiguration->imageUrl($siteSettings['identity.favicon']) }}">
@@ -85,6 +91,16 @@
     @endif
 
     <title>{{ $pageTitle }}</title>
+
+    @if (filled($gaMeasurementId))
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ urlencode($gaMeasurementId) }}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '{{ str_replace("'", "\\'", $gaMeasurementId) }}');
+        </script>
+    @endif
 
     <script type="application/ld+json">@json($schoolSchema)</script>
     @stack('head')

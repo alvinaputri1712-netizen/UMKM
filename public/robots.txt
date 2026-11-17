@@ -1,2 +1,8 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /adminsmkiciputat/
+Disallow: /adminsmkiciputat
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://example.com/sitemap.xml
