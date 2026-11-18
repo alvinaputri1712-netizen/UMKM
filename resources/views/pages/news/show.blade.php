@@ -1,19 +1,13 @@
 @extends('layouts.app')
 
-@section('title', $article->meta_title ?: $article->title.' | '.$siteSettings['identity.school_name'])
-@section('meta_description', $article->meta_description ?: $article->summary)
-@section('meta_image', $article->image_path ? $siteConfiguration->imageUrl($article->image_path) : '')
-@section('meta_type', 'article')
-
 @php
-    $articleImage = $article->image_path ? $siteConfiguration->imageUrl($article->image_path) : null;
+    $articleMediaItems = $article->media_items;
+    $articlePrimaryMedia = $articleMediaItems[0] ?? null;
+    $articleImageMedia = collect($articleMediaItems)->first(fn (array $media): bool => $media['type'] === 'image');
+    $articleVideoPreview = collect($articleMediaItems)->first(fn (array $media): bool => $media['type'] === 'video' && filled($media['poster']));
+    $articleImageSource = $articleImageMedia['src'] ?? $articleVideoPreview['poster'] ?? null;
+    $articleImage = $articleImageSource ? $siteConfiguration->imageUrl($articleImageSource) : null;
     $articleAuthor = data_get($article->metadata, 'author');
-    $storedImages = data_get($article->metadata, 'images', []);
-    $articleImages = is_array($storedImages)
-        ? collect($storedImages)
-            ->filter(fn (mixed $image): bool => is_string($image) && trim($image) !== '')
-            ->values()
-        : collect();
     $articleSchema = array_filter([
         '@context' => 'https://schema.org',
         '@type' => 'NewsArticle',
@@ -29,6 +23,11 @@
         ],
     ], fn (mixed $value): bool => $value !== null && $value !== '');
 @endphp
+
+@section('title', $article->meta_title ?: $article->title.' | '.$siteSettings['identity.school_name'])
+@section('meta_description', $article->meta_description ?: $article->summary)
+@section('meta_image', $articleImage ?: '')
+@section('meta_type', 'article')
 
 @push('head')
     <script type="application/ld+json">@json($articleSchema)</script>
@@ -106,9 +105,23 @@
                         </div>
                     </header>
 
-                    @if ($articleImage)
+                    @if ($articlePrimaryMedia)
                         <figure class="news-article-cover">
-                            <img src="{{ $articleImage }}" alt="Foto {{ $article->title }}" fetchpriority="high">
+                            @if ($articlePrimaryMedia['type'] === 'image')
+                                <img src="{{ $siteConfiguration->imageUrl($articlePrimaryMedia['src']) }}" alt="Foto {{ $article->title }}" fetchpriority="high">
+                            @elseif ($articlePrimaryMedia['youtube_id'])
+                                <iframe
+                                    src="https://www.youtube-nocookie.com/embed/{{ $articlePrimaryMedia['youtube_id'] }}"
+                                    title="Video {{ $article->title }}"
+                                    loading="lazy"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowfullscreen
+                                ></iframe>
+                            @else
+                                <video controls playsinline preload="metadata" poster="{{ $articlePrimaryMedia['poster'] ? $siteConfiguration->imageUrl($articlePrimaryMedia['poster']) : '' }}">
+                                    <source src="{{ $siteConfiguration->imageUrl($articlePrimaryMedia['src']) }}" type="{{ $articlePrimaryMedia['mime_type'] ?? '' }}">
+                                </video>
+                            @endif
                         </figure>
                     @endif
 
@@ -121,11 +134,25 @@
                         @endif
                     </div>
 
-                    @if ($articleImages->isNotEmpty())
-                        <section class="news-article-gallery" aria-label="Foto tambahan berita">
-                            @foreach ($articleImages as $image)
+                    @if (count($articleMediaItems) > 1)
+                        <section class="news-article-gallery" aria-label="Media tambahan berita">
+                            @foreach (array_slice($articleMediaItems, 1) as $media)
                                 <figure>
-                                    <img src="{{ $siteConfiguration->imageUrl($image) }}" alt="Foto {{ $article->title }} {{ $loop->iteration }}" loading="lazy">
+                                    @if ($media['type'] === 'image')
+                                        <img src="{{ $siteConfiguration->imageUrl($media['src']) }}" alt="Foto {{ $article->title }} {{ $loop->iteration }}" loading="lazy">
+                                    @elseif ($media['youtube_id'])
+                                        <iframe
+                                            src="https://www.youtube-nocookie.com/embed/{{ $media['youtube_id'] }}"
+                                            title="Video {{ $article->title }} {{ $loop->iteration }}"
+                                            loading="lazy"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                            allowfullscreen
+                                        ></iframe>
+                                    @else
+                                        <video controls playsinline preload="metadata" poster="{{ $media['poster'] ? $siteConfiguration->imageUrl($media['poster']) : '' }}">
+                                            <source src="{{ $siteConfiguration->imageUrl($media['src']) }}" type="{{ $media['mime_type'] ?? '' }}">
+                                        </video>
+                                    @endif
                                 </figure>
                             @endforeach
                         </section>
@@ -136,13 +163,16 @@
                             <h2 class="news-related-articles__heading" id="news-related-heading">Berita Lainnya</h2>
                             <div class="news-related-articles__grid">
                                 @foreach ($relatedArticles as $relatedArticle)
+                                    @php
+                                        $relatedMediaPreview = $relatedArticle->media_items[0] ?? null;
+                                    @endphp
                                     <article class="news-related-card">
                                         <a class="news-related-card__link" href="{{ route('news.show', $relatedArticle->slug) }}">
-                                            @if ($relatedArticle->image_path)
+                                            @if ($relatedMediaPreview && ($relatedMediaPreview['type'] === 'image' || $relatedMediaPreview['poster']))
                                                 <img
                                                     class="news-related-card__image"
-                                                    src="{{ $siteConfiguration->imageUrl($relatedArticle->image_path) }}"
-                                                    alt="Foto {{ $relatedArticle->title }}"
+                                                    src="{{ $siteConfiguration->imageUrl($relatedMediaPreview['type'] === 'image' ? $relatedMediaPreview['src'] : $relatedMediaPreview['poster']) }}"
+                                                    alt="{{ $relatedMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $relatedArticle->title }}"
                                                     loading="lazy"
                                                 >
                                             @else
@@ -166,12 +196,15 @@
                             <h2 class="news-sidebar-card__title" id="news-detail-related-heading">Berita Terkait</h2>
                             <ol class="news-detail-related-list">
                                 @foreach ($relatedArticles->take(3) as $relatedArticle)
+                                    @php
+                                        $relatedMediaPreview = $relatedArticle->media_items[0] ?? null;
+                                    @endphp
                                     <li class="news-detail-related-item">
                                         <a class="news-detail-related-item__link" href="{{ route('news.show', $relatedArticle->slug) }}">
-                                            @if ($relatedArticle->image_path)
+                                            @if ($relatedMediaPreview && ($relatedMediaPreview['type'] === 'image' || $relatedMediaPreview['poster']))
                                                 <img
                                                     class="news-detail-related-item__image"
-                                                    src="{{ $siteConfiguration->imageUrl($relatedArticle->image_path) }}"
+                                                    src="{{ $siteConfiguration->imageUrl($relatedMediaPreview['type'] === 'image' ? $relatedMediaPreview['src'] : $relatedMediaPreview['poster']) }}"
                                                     alt=""
                                                     loading="lazy"
                                                 >

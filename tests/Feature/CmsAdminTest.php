@@ -197,22 +197,23 @@ class CmsAdminTest extends TestCase
             ->assertSee('Perusahaan Uji');
     }
 
-    public function test_admin_news_form_explains_homepage_placement_and_uses_automatic_by_default(): void
+    public function test_admin_news_form_shows_three_placements_without_manual_order_or_seo_fields(): void
     {
         $admin = $this->createAdmin();
 
         $this->actingAs($admin, 'admin')
             ->get(route('admin.content.create', 'news'))
             ->assertOk()
-            ->assertSee('Posisi tampil di beranda')
+            ->assertSee('Penempatan berita')
             ->assertSee('Berita utama (1 slot)')
-            ->assertSee('Carousel berita (bisa digeser)')
-            ->assertSee('Kartu di bawah carousel')
-            ->assertSee('Daftar berita di sisi kanan')
-            ->assertSee('Otomatis (mengikuti urutan tanggal)')
-            ->assertSee('Hanya tampil di halaman berita')
-            ->assertSee('Slot berita utama hanya satu.')
-            ->assertSee('value="auto" selected', false)
+            ->assertSee('Berita terbaru (maks. 3 di Beranda)')
+            ->assertSee('Berita lampau (arsip)')
+            ->assertSee('Tiga berita terbaru di Beranda dipilih otomatis berdasarkan tanggal publikasi')
+            ->assertSee('Tambahkan maksimal 20 foto atau video')
+            ->assertSee('File dari perangkat')
+            ->assertDontSee('File Manager')
+            ->assertDontSee('Urutan tampil')
+            ->assertDontSee('Pengaturan SEO')
             ->assertDontSee('Tandai sebagai unggulan');
     }
 
@@ -237,7 +238,7 @@ class CmsAdminTest extends TestCase
 
         $newMain = NewsArticle::query()->where('slug', 'berita-utama-baru')->firstOrFail();
         $this->assertSame('featured', $newMain->metadata['homepage_group']);
-        $this->assertSame('auto', $previousMain->fresh()->metadata['homepage_group']);
+        $this->assertSame('latest', $previousMain->fresh()->metadata['homepage_group']);
         $this->assertDatabaseHas('content_activities', [
             'content_type' => 'news',
             'content_id' => $previousMain->id,
@@ -248,7 +249,7 @@ class CmsAdminTest extends TestCase
             ->get(route('admin.content.index', 'news'))
             ->assertOk()
             ->assertSee('Berita utama (1 slot)')
-            ->assertSee('Otomatis (mengikuti urutan tanggal)');
+            ->assertSee('Berita terbaru (maks. 3 di Beranda)');
 
         $homepageContent = $this->get(route('home'))
             ->assertOk()
@@ -272,7 +273,7 @@ class CmsAdminTest extends TestCase
             'title' => 'Artikel yang Dipromosikan',
             'slug' => 'artikel-yang-dipromosikan',
             'status' => 'published',
-            'metadata' => ['homepage_group' => 'auto'],
+            'metadata' => ['homepage_group' => 'latest'],
         ]);
 
         $this->actingAs($admin, 'admin')
@@ -285,7 +286,7 @@ class CmsAdminTest extends TestCase
             ->assertRedirect(route('admin.content.index', 'news'));
 
         $this->assertSame('featured', $article->fresh()->metadata['homepage_group']);
-        $this->assertSame('auto', $previousMain->fresh()->metadata['homepage_group']);
+        $this->assertSame('latest', $previousMain->fresh()->metadata['homepage_group']);
     }
 
     public function test_admin_saving_a_draft_as_main_does_not_replace_the_published_main(): void
@@ -316,6 +317,97 @@ class CmsAdminTest extends TestCase
         $this->get(route('admin.content.index', 'news'))
             ->assertOk()
             ->assertSee('Berita utama (1 slot) (Draft)');
+    }
+
+    public function test_admin_can_publish_news_with_device_files_and_urls_to_database_and_public_pages(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.content.store', 'news'), [
+                'title' => 'Berita Dengan Banyak Media',
+                'slug' => 'berita-dengan-banyak-media',
+                'summary' => 'Berita dengan foto dan beberapa video.',
+                'body' => 'Isi berita.',
+                'status' => 'published',
+                'metadata' => ['homepage_group' => 'latest'],
+                'news_media' => [
+                    [
+                        'type' => 'image',
+                        'source' => 'device',
+                        'file' => UploadedFile::fake()->image('news-cover.jpg', 600, 400),
+                    ],
+                    [
+                        'type' => 'video',
+                        'source' => 'device',
+                        'file' => UploadedFile::fake()->create('news-clip.mp4', 100, 'video/mp4'),
+                    ],
+                    ['type' => 'video', 'source' => 'url', 'url' => 'https://www.youtube.com/watch?v=AbCdeFGhi12'],
+                ],
+            ])
+            ->assertRedirect(route('admin.content.index', 'news'));
+
+        $article = NewsArticle::query()->where('slug', 'berita-dengan-banyak-media')->firstOrFail();
+        $this->assertDatabaseHas('news_articles', [
+            'id' => $article->id,
+            'status' => 'published',
+        ]);
+        $this->assertCount(3, $article->metadata['media']);
+        $imageAsset = MediaAsset::query()->findOrFail($article->metadata['media'][0]['asset_id']);
+        $videoAsset = MediaAsset::query()->findOrFail($article->metadata['media'][1]['asset_id']);
+        $this->assertSame($imageAsset->publicPath(), $article->image_path);
+        $this->assertSame('image', $imageAsset->media_type);
+        $this->assertSame('video', $videoAsset->media_type);
+        Storage::disk('public')->assertExists($imageAsset->publicPath());
+        Storage::disk('public')->assertExists($videoAsset->publicPath());
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.content.index', 'news'))
+            ->assertOk()
+            ->assertSee('Berita Dengan Banyak Media');
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('Berita Dengan Banyak Media');
+        $this->get(route('news.index'))
+            ->assertOk()
+            ->assertSee('Berita Dengan Banyak Media');
+        $this->get(route('news.show', $article->slug))
+            ->assertOk()
+            ->assertSee('https://www.youtube-nocookie.com/embed/AbCdeFGhi12', false)
+            ->assertSee($videoAsset->publicPath(), false);
+    }
+
+    public function test_admin_rejects_more_than_twenty_news_media_items_and_non_http_media_urls(): void
+    {
+        $admin = $this->createAdmin();
+        $tooManyMediaItems = collect(range(1, 21))
+            ->map(fn (int $index): array => [
+                'type' => 'image',
+                'source' => 'url',
+                'url' => 'https://example.test/news-'.$index.'.jpg',
+            ])
+            ->all();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.content.store', 'news'), [
+                'title' => 'Berita Dengan Media Terlalu Banyak',
+                'slug' => 'berita-dengan-media-terlalu-banyak',
+                'status' => 'published',
+                'metadata' => ['homepage_group' => 'latest'],
+                'news_media' => $tooManyMediaItems,
+            ])
+            ->assertSessionHasErrors('news_media');
+
+        $this->post(route('admin.content.store', 'news'), [
+            'title' => 'Berita Dengan URL Tidak Valid',
+            'slug' => 'berita-dengan-url-tidak-valid',
+            'status' => 'published',
+            'metadata' => ['homepage_group' => 'latest'],
+            'news_media' => [
+                ['type' => 'video', 'source' => 'url', 'url' => 'javascript:alert(1)'],
+            ],
+        ])->assertSessionHasErrors('news_media.0.url');
     }
 
     public function test_admin_scheduling_a_main_news_article_keeps_the_current_main_until_its_date(): void
@@ -372,8 +464,10 @@ class CmsAdminTest extends TestCase
                 'category' => 'Kegiatan Sekolah',
                 'status' => 'published',
                 'published_at' => now()->format('Y-m-d\TH:i'),
-                'metadata' => ['homepage_group' => 'auto'],
-                'image' => UploadedFile::fake()->image('berita-awal.jpg', 600, 400),
+                'metadata' => ['homepage_group' => 'latest'],
+                'news_media' => [
+                    ['type' => 'image', 'source' => 'url', 'url' => 'https://example.test/berita-awal.jpg'],
+                ],
             ])
             ->assertRedirect(route('admin.content.index', 'news'));
 
@@ -382,7 +476,7 @@ class CmsAdminTest extends TestCase
 
         $article->update([
             'metadata' => [
-                'homepage_group' => 'auto',
+                'homepage_group' => 'latest',
                 'author' => 'Redaksi Sekolah',
                 'images' => ['/images/galeri-berita.jpg'],
             ],
@@ -393,7 +487,6 @@ class CmsAdminTest extends TestCase
             'type' => 'news',
             'slug' => $article->slug,
         ]);
-        Storage::disk('public')->assertExists($oldImagePath);
         $this->actingAs($admin, 'admin')
             ->get(route('admin.content.edit', ['type' => 'news', 'entry' => $article]))
             ->assertOk()
@@ -426,8 +519,10 @@ class CmsAdminTest extends TestCase
                 'category' => 'Prestasi',
                 'status' => 'draft',
                 'published_at' => now()->format('Y-m-d\TH:i'),
-                'metadata' => ['homepage_group' => 'auto'],
-                'image' => UploadedFile::fake()->image('berita-terbaru.jpg', 800, 600),
+                'metadata' => ['homepage_group' => 'latest'],
+                'news_media' => [
+                    ['type' => 'image', 'source' => 'url', 'url' => 'https://example.test/berita-terbaru.jpg'],
+                ],
             ])
             ->assertRedirect(route('admin.content.index', 'news'));
 
@@ -436,8 +531,6 @@ class CmsAdminTest extends TestCase
         $this->assertSame('Redaksi Sekolah', $article->metadata['author']);
         $this->assertSame(['/images/galeri-berita.jpg'], $article->metadata['images']);
         $this->assertSame('Prestasi', $article->category);
-        Storage::disk('public')->assertMissing($oldImagePath);
-        Storage::disk('public')->assertExists($draftImagePath);
         $this->actingAs($admin, 'admin')
             ->get(route('admin.content.edit', ['type' => 'news', 'entry' => $article]))
             ->assertOk()
@@ -461,7 +554,10 @@ class CmsAdminTest extends TestCase
                 'category' => $article->category,
                 'status' => 'published',
                 'published_at' => now()->format('Y-m-d\TH:i'),
-                'metadata' => ['homepage_group' => 'auto'],
+                'metadata' => ['homepage_group' => 'latest'],
+                'news_media' => [
+                    ['type' => 'image', 'source' => 'url', 'url' => $draftImagePath],
+                ],
             ])
             ->assertRedirect(route('admin.content.index', 'news'));
 
@@ -495,7 +591,6 @@ class CmsAdminTest extends TestCase
             'content_id' => $article->id,
             'action' => 'deleted',
         ]);
-        Storage::disk('public')->assertMissing($draftImagePath);
         $this->get(route('home'))->assertOk()->assertDontSee('Berita Sinkron Diperbarui');
         $this->get(route('news.index'))->assertOk()->assertDontSee('Berita Sinkron Diperbarui');
         $this->get(route('news.show', 'berita-sinkron-diperbarui'))->assertNotFound();
@@ -633,7 +728,7 @@ class CmsAdminTest extends TestCase
             'action' => 'created',
         ]);
         Storage::disk('public')->assertExists($imagePath);
-        $this->assertDatabaseMissing('teachers', ['slug' => 'sambutan-kepala-sekolah-2026'], 'teachers');
+        $this->assertDatabaseMissing('teachers', ['slug' => 'sambutan-kepala-sekolah-2026']);
 
         $this->travelTo($publishedAt->copy()->addMinute());
         $this->actingAs($admin, 'admin')
@@ -753,6 +848,56 @@ class CmsAdminTest extends TestCase
         $this->assertDatabaseMissing('site_settings', ['key' => 'home.principal.message']);
     }
 
+    public function test_settings_update_identity_and_footer_for_public_pages(): void
+    {
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'identity',
+                'settings' => [
+                    'identity' => [
+                        'school_name' => 'SMK Islamiyah Modern',
+                        'location' => 'Ciputat, Kota Tangerang Selatan',
+                        'address' => 'Jl. Pendidikan No. 1',
+                        'whatsapp' => '628123456789',
+                        'email' => 'info@example.test',
+                        'instagram' => 'https://instagram.com/smkislamiyah',
+                        'copyright' => 'Pusat Informasi Sekolah',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.settings.index', ['section' => 'identity']));
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'footer',
+                'settings' => [
+                    'footer' => [
+                        'description' => 'Informasi resmi sekolah.',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.settings.index', ['section' => 'footer']));
+
+        $this->assertSame(
+            'SMK Islamiyah Modern',
+            json_decode(SiteSetting::query()->findOrFail('identity.school_name')->value, true, flags: JSON_THROW_ON_ERROR),
+        );
+        $this->assertSame(
+            'Pusat Informasi Sekolah',
+            json_decode(SiteSetting::query()->findOrFail('identity.copyright')->value, true, flags: JSON_THROW_ON_ERROR),
+        );
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('SMK Islamiyah Modern')
+            ->assertSee('Ciputat, Kota Tangerang Selatan')
+            ->assertSee('Informasi resmi sekolah.')
+            ->assertSee('Pusat Informasi Sekolah')
+            ->assertSee('https://instagram.com/smkislamiyah', false);
+    }
+
     public function test_settings_reject_unsafe_link_schemes(): void
     {
         $admin = $this->createAdmin();
@@ -769,6 +914,139 @@ class CmsAdminTest extends TestCase
             ->assertSessionHasErrors(['settings.navbar.home.url']);
 
         $this->assertDatabaseMissing('site_settings', ['key' => 'navbar.home.url']);
+    }
+
+    public function test_admin_can_change_the_spmb_information_url_and_public_button_uses_it(): void
+    {
+        $admin = $this->createAdmin();
+        $informationUrl = 'https://pmb.example.test/pendaftaran';
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.index', ['section' => 'spmb']))
+            ->assertOk()
+            ->assertSee('Link tombol Informasi SPMB')
+            ->assertSee('value="https://informasi-spmb.site/spmb/banten/sekolah/20603254"', false);
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'spmb',
+                'settings' => [
+                    'spmb' => [
+                        'information_url' => $informationUrl,
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.settings.index', ['section' => 'spmb']));
+
+        $this->assertSame(
+            $informationUrl,
+            json_decode(SiteSetting::query()->findOrFail('spmb.information_url')->value, true, flags: JSON_THROW_ON_ERROR),
+        );
+
+        $this->get(route('spmb'))
+            ->assertOk()
+            ->assertSee('href="'.$informationUrl.'"', false);
+    }
+
+    public function test_admin_can_edit_about_profile_and_map_details(): void
+    {
+        $admin = $this->createAdmin();
+        $coordinates = '-6.12345, 106.54321';
+        $settings = [
+            'profile_heading' => 'Profil Sekolah Uji',
+            'profile_paragraph_1' => 'Paragraf profil pertama yang baru.',
+            'profile_paragraph_2' => 'Paragraf profil kedua yang baru.',
+            'profile_image_alt' => 'Gedung sekolah tampak dari depan',
+            'location_address' => 'Jl. Contoh No. 10, Ciputat',
+            'location_description' => 'Peta lokasi sekolah yang telah diperbarui.',
+            'map_coordinates' => $coordinates,
+            'visible' => true,
+        ];
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.index', ['section' => 'about']))
+            ->assertOk()
+            ->assertSee('Foto sekolah')
+            ->assertSee('Koordinat Google Maps (lintang, bujur)')
+            ->assertSee('placeholder="Contoh: -6.2, 106.7"', false)
+            ->assertSee('Paragraf pertama Profil Sekolah')
+            ->assertSee('SMK Islamiyah Ciputat membentuk siswa dengan pengetahuan');
+
+        $this->get(route('about'))
+            ->assertOk()
+            ->assertSee('/images/10.jpeg', false)
+            ->assertSee('SMK Islamiyah Ciputat membentuk siswa dengan pengetahuan');
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'about',
+                'settings' => ['about' => $settings],
+            ])
+            ->assertRedirect(route('admin.settings.index', ['section' => 'about']));
+
+        foreach ($settings as $key => $value) {
+            $this->assertSame(
+                $value,
+                json_decode(SiteSetting::query()->findOrFail('about.'.$key)->value, true, flags: JSON_THROW_ON_ERROR),
+            );
+        }
+
+        $this->get(route('about'))
+            ->assertOk()
+            ->assertSee('Profil Sekolah Uji')
+            ->assertSee('Paragraf profil pertama yang baru.')
+            ->assertSee('Paragraf profil kedua yang baru.')
+            ->assertSee('alt="Gedung sekolah tampak dari depan"', false)
+            ->assertSee('Jl. Contoh No. 10, Ciputat')
+            ->assertSee('Peta lokasi sekolah yang telah diperbarui.')
+            ->assertSee('https://www.google.com/maps?q=-6.12345%2C+106.54321&output=embed', false)
+            ->assertSee('https://www.google.com/maps/search/?api=1&amp;query=-6.12345%2C+106.54321', false);
+    }
+
+    #[DataProvider('invalidAboutMapCoordinates')]
+    public function test_admin_cannot_save_invalid_about_map_coordinates(string $coordinates): void
+    {
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'about',
+                'settings' => [
+                    'about' => [
+                        'map_coordinates' => $coordinates,
+                    ],
+                ],
+            ])
+            ->assertSessionHasErrors(['settings.about.map_coordinates']);
+
+        $this->assertDatabaseMissing('site_settings', ['key' => 'about.map_coordinates']);
+    }
+
+    public static function invalidAboutMapCoordinates(): array
+    {
+        return [
+            'malformed coordinates' => ['not coordinates'],
+            'latitude outside range' => ['91, 0'],
+            'longitude outside range' => ['0, 181'],
+        ];
+    }
+
+    public function test_admin_cannot_set_an_unsafe_spmb_information_url(): void
+    {
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'spmb',
+                'settings' => [
+                    'spmb' => [
+                        'information_url' => 'javascript:alert(1)',
+                    ],
+                ],
+            ])
+            ->assertSessionHasErrors(['settings.spmb.information_url']);
+
+        $this->assertDatabaseMissing('site_settings', ['key' => 'spmb.information_url']);
     }
 
     public function test_settings_accept_internal_links(): void
@@ -831,7 +1109,7 @@ class CmsAdminTest extends TestCase
     {
         $admin = $this->createAdmin();
 
-        $this->actingAs($admin, 'admin')
+        $response = $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.update'), [
                 'section' => 'home',
                 'settings' => [
@@ -850,26 +1128,10 @@ class CmsAdminTest extends TestCase
         $this->assertDatabaseMissing('site_settings', ['key' => 'home.news.video_1']);
     }
 
-    public function test_admin_can_select_a_video_from_media_manager_for_homepage(): void
+    public function test_admin_can_upload_a_video_from_device_for_homepage(): void
     {
+        Storage::fake('public');
         $admin = $this->createAdmin();
-        $asset = MediaAsset::query()->create([
-            'disk' => 'public',
-            'filename' => 'kegiatan-sekolah.mp4',
-            'original_path' => 'cms/media/videos/kegiatan-sekolah.mp4',
-            'optimized_path' => 'cms/media/videos/kegiatan-sekolah.mp4',
-            'media_type' => 'video',
-            'mime_type' => 'video/mp4',
-            'file_size' => 1024,
-            'optimized_size' => 1024,
-            'quality' => 'original',
-            'category' => 'news',
-        ]);
-
-        $this->actingAs($admin, 'admin')
-            ->get(route('admin.settings.index', ['section' => 'home']))
-            ->assertOk()
-            ->assertSee('kegiatan-sekolah.mp4');
 
         $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.update'), [
@@ -878,26 +1140,41 @@ class CmsAdminTest extends TestCase
                     'home' => [
                         'news' => [
                             'video_1' => [
-                                'source' => 'media',
-                                'asset_id' => $asset->id,
+                                'source' => 'upload',
                             ],
+                        ],
+                    ],
+                ],
+                'video_uploads' => [
+                    'home' => [
+                        'news' => [
+                            'video_1' => UploadedFile::fake()->create('kegiatan-sekolah.mp4', 100, 'video/mp4'),
                         ],
                     ],
                 ],
             ])
             ->assertRedirect(route('admin.settings.index', ['section' => 'home']));
 
+        $asset = MediaAsset::query()->where('filename', 'kegiatan-sekolah.mp4')->firstOrFail();
         $this->assertSame(
             $asset->publicPath(),
             json_decode(SiteSetting::query()->findOrFail('home.news.video_1')->value, true, flags: JSON_THROW_ON_ERROR),
         );
+        Storage::disk('public')->assertExists($asset->publicPath());
         $this->assertContains(
             ['type' => 'Pengaturan Website', 'title' => 'home.news.video_1'],
             app(MediaUsage::class)->forAssets(collect([$asset]))[$asset->id],
         );
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.settings.index', ['section' => 'home']))
+            ->assertOk()
+            ->assertSee('Pilih video dari perangkat')
+            ->assertSee('Pertahankan video tersimpan')
+            ->assertDontSee('Media Manager');
     }
 
-    public function test_admin_cannot_select_an_image_as_a_homepage_video(): void
+    public function test_admin_cannot_use_an_image_as_a_homepage_video(): void
     {
         $admin = $this->createAdmin();
         $asset = MediaAsset::query()->create([
@@ -911,7 +1188,7 @@ class CmsAdminTest extends TestCase
             'category' => 'news',
         ]);
 
-        $this->actingAs($admin, 'admin')
+        $response = $this->actingAs($admin, 'admin')
             ->put(route('admin.settings.update'), [
                 'section' => 'home',
                 'settings' => [
@@ -924,8 +1201,13 @@ class CmsAdminTest extends TestCase
                         ],
                     ],
                 ],
-            ])
-            ->assertSessionHasErrors('settings.home.news.video_1.asset_id');
+            ]);
+
+        $response->assertSessionHasErrors();
+        $this->assertSame(
+            ['settings.home.news.video_1.asset_id'],
+            array_keys(session('errors')->getBag('default')->messages()),
+        );
 
         $this->assertDatabaseMissing('site_settings', ['key' => 'home.news.video_1']);
     }
@@ -967,6 +1249,25 @@ class CmsAdminTest extends TestCase
         ];
     }
 
+    public function test_homepage_renders_admin_managed_news_section_copy(): void
+    {
+        SiteSetting::query()->create([
+            'key' => 'home.news.heading',
+            'group' => 'home',
+            'value' => json_encode('Judul Berita Uji', JSON_THROW_ON_ERROR),
+        ]);
+        SiteSetting::query()->create([
+            'key' => 'home.news.description',
+            'group' => 'home',
+            'value' => json_encode('Deskripsi berita dari pengaturan admin.', JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('Judul Berita Uji')
+            ->assertSee('Deskripsi berita dari pengaturan admin.');
+    }
+
     public function test_homepage_renders_admin_managed_teacher_section_copy(): void
     {
         SiteSetting::query()->create([
@@ -979,11 +1280,17 @@ class CmsAdminTest extends TestCase
             'group' => 'home',
             'value' => json_encode('Mendampingi masa depan siswa.', JSON_THROW_ON_ERROR),
         ]);
+        SiteSetting::query()->create([
+            'key' => 'home.teachers.image',
+            'group' => 'home',
+            'value' => json_encode('/images/test-teacher-section.jpg', JSON_THROW_ON_ERROR),
+        ]);
 
         $this->get(route('home'))
             ->assertOk()
             ->assertSee('Pendidik Unggul')
-            ->assertSee('Mendampingi masa depan siswa.');
+            ->assertSee('Mendampingi masa depan siswa.')
+            ->assertSee('/images/test-teacher-section.jpg', false);
     }
 
     public function test_teacher_page_renders_admin_managed_title_and_description(): void
@@ -1159,8 +1466,8 @@ class CmsAdminTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Peran Anda: <strong>Editor</strong>', false)
-            ->assertSee('Editor dapat mengunggah foto untuk konten')
-            ->assertDontSee('href="'.route('admin.media.index').'"', false)
+            ->assertSee('Editor dapat mengunggah media untuk konten')
+            ->assertDontSee('Media Manager')
             ->assertDontSee('href="'.route('admin.settings.index').'"', false)
             ->assertDontSee('Manajemen Admin');
 
@@ -1173,8 +1480,8 @@ class CmsAdminTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($editor, 'admin')
-            ->get(route('admin.media.index'))
-            ->assertForbidden();
+            ->get('/adminsmkiciputat/media')
+            ->assertNotFound();
 
         $this->actingAs($editor, 'admin')
             ->get(route('admin.admins.index'))
@@ -1190,7 +1497,7 @@ class CmsAdminTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_manage_teacher_in_separate_database(): void
+    public function test_admin_can_manage_teacher_using_default_database(): void
     {
         $admin = $this->createAdmin();
 
@@ -1211,7 +1518,7 @@ class CmsAdminTest extends TestCase
             'name' => 'Guru Uji',
             'slug' => 'guru-uji',
             'status' => 'published',
-        ], 'teachers');
+        ]);
 
         $this->assertDatabaseMissing('content_entries', [
             'type' => 'teacher',
@@ -1237,7 +1544,7 @@ class CmsAdminTest extends TestCase
             'id' => $teacher->id,
             'name' => 'Guru Uji Edit',
             'slug' => 'guru-uji-edit',
-        ], 'teachers');
+        ]);
 
         $this->get(route('teachers'))
             ->assertOk()
@@ -1249,7 +1556,7 @@ class CmsAdminTest extends TestCase
 
         $this->assertDatabaseMissing('teachers', [
             'id' => $teacher->id,
-        ], 'teachers');
+        ]);
         $this->assertNull(Teacher::query()->find($teacher->id));
 
         $this->assertDatabaseHas('content_activities', [
@@ -1346,7 +1653,7 @@ class CmsAdminTest extends TestCase
             ->assertRedirect(route('admin.teachers.index'));
 
         $this->assertSame(1, Teacher::query()->count());
-        $this->assertDatabaseHas('teachers', ['id' => $teacher->id, 'name' => 'Guru A Edit'], 'teachers');
+        $this->assertDatabaseHas('teachers', ['id' => $teacher->id, 'name' => 'Guru A Edit']);
     }
 
     public function test_teacher_photo_replaced_and_old_file_cleaned_when_unused(): void
@@ -1463,7 +1770,7 @@ class CmsAdminTest extends TestCase
             ->delete(route('admin.teachers.destroy', $teacher))
             ->assertRedirect(route('admin.teachers.index'));
 
-        $this->assertDatabaseMissing('teachers', ['id' => $teacher->id], 'teachers');
+        $this->assertDatabaseMissing('teachers', ['id' => $teacher->id]);
         Storage::disk('public')->assertMissing($path);
     }
 
@@ -1479,7 +1786,7 @@ class CmsAdminTest extends TestCase
             ->delete(route('admin.teachers.destroy', $teacher))
             ->assertRedirect(route('admin.teachers.index'));
 
-        $this->assertDatabaseMissing('teachers', ['id' => $teacher->id], 'teachers');
+        $this->assertDatabaseMissing('teachers', ['id' => $teacher->id]);
         Storage::disk('public')->assertExists($path);
     }
 
@@ -1511,9 +1818,9 @@ class CmsAdminTest extends TestCase
             ->post(route('admin.teachers.bulk-destroy'), ['ids' => [$t1->id, $t2->id]])
             ->assertRedirect(route('admin.teachers.index'));
 
-        $this->assertDatabaseMissing('teachers', ['id' => $t1->id], 'teachers');
-        $this->assertDatabaseMissing('teachers', ['id' => $t2->id], 'teachers');
-        $this->assertDatabaseHas('teachers', ['id' => $t3->id], 'teachers');
+        $this->assertDatabaseMissing('teachers', ['id' => $t1->id]);
+        $this->assertDatabaseMissing('teachers', ['id' => $t2->id]);
+        $this->assertDatabaseHas('teachers', ['id' => $t3->id]);
         Storage::disk('public')->assertMissing($t1->image_path);
         $this->assertDatabaseHas('content_activities', ['content_type' => 'teacher', 'content_id' => $t1->id, 'action' => 'deleted']);
 
@@ -1537,6 +1844,24 @@ class CmsAdminTest extends TestCase
             'role' => $role,
             'email' => 'editor@example.test',
             'password' => Hash::make('Secure-password-1234'),
+        ]);
+    }
+
+    private function createMediaAsset(string $mediaType, string $path, string $mimeType): MediaAsset
+    {
+        Storage::disk('public')->put($path, 'media-data');
+
+        return MediaAsset::query()->create([
+            'disk' => 'public',
+            'filename' => basename($path),
+            'original_path' => $path,
+            'optimized_path' => $path,
+            'media_type' => $mediaType,
+            'mime_type' => $mimeType,
+            'file_size' => 10,
+            'optimized_size' => 10,
+            'quality' => 'original',
+            'category' => 'news',
         ]);
     }
 

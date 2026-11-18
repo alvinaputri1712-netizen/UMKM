@@ -8,10 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $schema = Schema::connection('teachers');
-
-        if (! $schema->hasTable('teachers')) {
-            $schema->create('teachers', function (Blueprint $table): void {
+        if (! Schema::hasTable('teachers')) {
+            Schema::create('teachers', function (Blueprint $table): void {
                 $table->id();
                 $table->string('name');
                 $table->string('slug');
@@ -33,8 +31,8 @@ return new class extends Migration
             return;
         }
 
-        $schema->table('teachers', function (Blueprint $table) use ($schema): void {
-            if (! $schema->hasIndex('teachers', 'teachers_name_index')) {
+        Schema::table('teachers', function (Blueprint $table): void {
+            if (! Schema::hasIndex('teachers', 'teachers_name_index')) {
                 $table->index('name');
             }
         });
@@ -42,6 +40,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::connection('teachers')->dropIfExists('teachers');
+        Schema::dropIfExists('teachers');
     }
 };

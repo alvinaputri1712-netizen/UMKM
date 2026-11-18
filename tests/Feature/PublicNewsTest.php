@@ -341,6 +341,48 @@ class PublicNewsTest extends TestCase
         $this->assertSame(2, substr_count($sectionMarkup, 'class="news-related-card"'));
     }
 
+    public function test_news_cards_preview_video_and_article_detail_renders_all_media_items(): void
+    {
+        $article = $this->createArticle(
+            'Berita Video Sekolah',
+            'berita-video-sekolah',
+            'Kegiatan Sekolah',
+            now(),
+            metadata: [
+                'homepage_group' => 'latest',
+                'media' => [
+                    ['type' => 'video', 'source' => 'url', 'url' => 'https://www.youtube.com/watch?v=AbCdeFGhi12'],
+                    ['type' => 'image', 'source' => 'url', 'url' => 'https://example.test/berita-1.jpg'],
+                    ['type' => 'video', 'source' => 'url', 'url' => 'https://cdn.example.test/video-2.mp4'],
+                    ['type' => 'video', 'source' => 'url', 'url' => 'https://cdn.example.test/video-3.webm'],
+                    ['type' => 'image', 'source' => 'url', 'url' => 'https://example.test/berita-4.jpg'],
+                    ['type' => 'video', 'source' => 'url', 'url' => 'https://cdn.example.test/video-5.ogv'],
+                ],
+            ],
+        );
+
+        $this->get(route('news.index'))
+            ->assertOk()
+            ->assertSee('https://img.youtube.com/vi/AbCdeFGhi12/hqdefault.jpg', false);
+
+        $response = $this->get(route('news.show', $article->slug))
+            ->assertOk()
+            ->assertSee('https://www.youtube-nocookie.com/embed/AbCdeFGhi12', false)
+            ->assertSee('https://cdn.example.test/video-2.mp4', false)
+            ->assertSee('https://cdn.example.test/video-3.webm', false)
+            ->assertSee('https://cdn.example.test/video-5.ogv', false)
+            ->assertSee('https://example.test/berita-1.jpg', false)
+            ->assertSee('https://example.test/berita-4.jpg', false);
+
+        $content = $response->getContent() ?? '';
+        $galleryStart = strpos($content, '<section class="news-article-gallery"');
+        $this->assertNotFalse($galleryStart);
+        $galleryEnd = strpos($content, '</section>', $galleryStart);
+        $this->assertNotFalse($galleryEnd);
+        $galleryMarkup = substr($content, $galleryStart, $galleryEnd - $galleryStart);
+        $this->assertSame(5, substr_count($galleryMarkup, '<figure>'));
+    }
+
     public function test_article_detail_without_other_published_articles_hides_related_news(): void
     {
         $article = $this->createArticle(

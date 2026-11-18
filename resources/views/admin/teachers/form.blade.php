@@ -75,7 +75,7 @@
                 </div>
                 <small>Geser posisi fokus agar foto tampil proporsional pada kartu identitas. Foto asli tidak diubah.</small>
                 @if ($entry->image_path && ! $photoFocus['available'])
-                    <small>Foto lama ini belum terhubung ke Media Manager; pengaturan fokus akan aktif setelah foto diunggah atau dipilih dari Media Manager.</small>
+                    <small>Foto lama ini belum memiliki data posisi fokus. Unggah foto baru dari perangkat untuk mengatur fokus.</small>
                 @endif
                 @error('focal_point_x')<small class="admin-field-error">{{ $message }}</small>@enderror
                 @error('focal_point_y')<small class="admin-field-error">{{ $message }}</small>@enderror

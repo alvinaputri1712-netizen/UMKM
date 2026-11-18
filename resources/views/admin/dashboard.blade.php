@@ -70,13 +70,6 @@
                 <span><strong>Tambah Tenaga Kependidikan</strong><small>Kelola informasi tenaga sekolah</small></span>
                 <i class="admin-quick-action-arrow" data-lucide="arrow-right" aria-hidden="true"></i>
             </a>
-            @if (! auth('admin')->user()->isEditor())
-                <a href="{{ route('admin.media.index') }}" class="admin-quick-action">
-                    <span class="admin-quick-action-icon"><i data-lucide="hard-drive" aria-hidden="true"></i></span>
-                    <span><strong>Kelola Media</strong><small>Atur aset media website</small></span>
-                    <i class="admin-quick-action-arrow" data-lucide="arrow-right" aria-hidden="true"></i>
-                </a>
-            @endif
             @if (auth('admin')->user()->isSuperAdmin())
                 <a href="{{ route('admin.admins.index') }}" class="admin-quick-action">
                     <span class="admin-quick-action-icon"><i data-lucide="users-round" aria-hidden="true"></i></span>

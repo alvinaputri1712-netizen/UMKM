@@ -5,7 +5,6 @@ use App\Http\Controllers\Admin\AdminRegistrationController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\ContentEntryController;
 use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\MediaManagerController;
 use App\Http\Controllers\Admin\MediaUploadController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TeacherController;
@@ -36,7 +35,6 @@ Route::get('/program/{slug}', [ProgramController::class, 'show'])->name('program
 Route::get('/tenaga-kependidikan', [ContentController::class, 'teachers'])->name('teachers');
 Route::get('/berita', [ContentController::class, 'news'])->name('news.index');
 Route::get('/berita/{slug}', [ContentController::class, 'article'])->name('news.show');
-Route::get('/galeri', [ContentController::class, 'gallery'])->name('gallery');
 Route::get('/bkk/lowongan-pekerjaan', [ContentController::class, 'jobs'])->name('bkk.jobs');
 Route::get('/bkk/tracer-study', [ContentController::class, 'tracerStudy'])->name('bkk.tracer-study');
 Route::get('/spmb', [ContentController::class, 'spmb'])->name('spmb');
@@ -57,12 +55,6 @@ Route::prefix('adminsmkiciputat')->name('admin.')->group(function (): void {
         Route::get('/register/success', [AdminRegistrationController::class, 'success'])->name('register.success');
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
         Route::middleware('admin.role:superadmin,admin')->group(function (): void {
-            Route::get('/media', [MediaManagerController::class, 'index'])->name('media.index');
-            Route::put('/media/{media}/poster', [MediaManagerController::class, 'poster'])->whereNumber('media')->name('media.poster');
-            Route::put('/media/{media}', [MediaManagerController::class, 'update'])->whereNumber('media')->name('media.update');
-            Route::delete('/media/{media}', [MediaManagerController::class, 'destroy'])->whereNumber('media')->name('media.destroy');
-            Route::get('/media/{media}/original', [MediaManagerController::class, 'download'])->whereNumber('media')->name('media.original');
-
             Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
             Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
@@ -75,7 +67,6 @@ Route::prefix('adminsmkiciputat')->name('admin.')->group(function (): void {
         });
 
         Route::middleware('admin.role:superadmin,admin,editor')->group(function (): void {
-            Route::post('/media', [MediaManagerController::class, 'store'])->name('media.store');
             Route::post('/media/uploads', [MediaUploadController::class, 'store'])->name('media.uploads.store');
             Route::get('/media/uploads/{uploadId}', [MediaUploadController::class, 'show'])->whereUuid('uploadId')->name('media.uploads.show');
             Route::post('/media/uploads/{uploadId}/chunks/{fileKey}/{chunkIndex}', [MediaUploadController::class, 'storeChunk'])
@@ -85,6 +76,7 @@ Route::prefix('adminsmkiciputat')->name('admin.')->group(function (): void {
                 ->name('media.uploads.chunk');
             Route::post('/media/uploads/{uploadId}/complete', [MediaUploadController::class, 'complete'])->whereUuid('uploadId')->name('media.uploads.complete');
             Route::delete('/media/uploads/{uploadId}', [MediaUploadController::class, 'destroy'])->whereUuid('uploadId')->name('media.uploads.destroy');
+            Route::put('/media/{media}/poster', [MediaUploadController::class, 'poster'])->whereNumber('media')->name('media.poster');
 
             Route::get('/tenaga-kependidikan', [TeacherController::class, 'index'])->name('teachers.index');
             Route::post('/tenaga-kependidikan/bulk-delete', [TeacherController::class, 'bulkDestroy'])->name('teachers.bulk-destroy');

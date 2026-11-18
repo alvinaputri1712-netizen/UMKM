@@ -1,7 +1,7 @@
 
 @php
     $logoUrl = $siteConfiguration->imageUrl($siteSettings['identity.logo']);
-    $menuItems = collect(['home', 'programs', 'teachers', 'news', 'gallery', 'bkk', 'about'])
+    $menuItems = collect(['home', 'programs', 'teachers', 'news', 'bkk', 'about'])
         ->filter(fn (string $key): bool => (bool) ($siteSettings['navbar.'.$key.'.visible'] ?? false))
         ->sortBy(fn (string $key): int => (int) ($siteSettings['navbar.'.$key.'.order'] ?? 0))
         ->values();
@@ -50,7 +50,7 @@
                 @else
                     <a
                         href="{{ $siteSettings['navbar.'.$menuItem.'.url'] }}"
-                        class="nav-link {{ ($menuItem === 'home' && request()->routeIs('home')) || ($menuItem === 'teachers' && request()->routeIs('teachers')) || ($menuItem === 'news' && request()->routeIs('news.*')) || ($menuItem === 'gallery' && request()->routeIs('gallery')) || ($menuItem === 'about' && request()->routeIs('about')) ? 'active' : '' }}"
+                        class="nav-link {{ ($menuItem === 'home' && request()->routeIs('home')) || ($menuItem === 'teachers' && request()->routeIs('teachers')) || ($menuItem === 'news' && request()->routeIs('news.*')) || ($menuItem === 'about' && request()->routeIs('about')) ? 'active' : '' }}"
                     >
                         {{ $siteSettings['navbar.'.$menuItem.'.label'] }}
                     </a>

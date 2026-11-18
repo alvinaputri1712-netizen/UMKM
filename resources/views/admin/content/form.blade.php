@@ -1,6 +1,10 @@
 @extends('admin.layout')
 
-@php($isEditing = $entry->exists)
+@php
+    $isEditing = $entry->exists;
+    $newsMediaInput = old('news_media', $newsMedia ?? []);
+    $newsMediaItems = is_array($newsMediaInput) ? $newsMediaInput : [];
+@endphp
 @section('title', ($isEditing ? 'Edit ' : 'Tambah ').$typeConfig['singular'])
 @section('page-title', $isEditing ? 'Edit '.$typeConfig['singular'] : 'Tambah '.$typeConfig['singular'])
 @section('breadcrumb', $typeConfig['plural'])
@@ -11,6 +15,7 @@
         action="{{ $isEditing ? route('admin.content.update', ['type' => $type, 'entry' => $entry]) : route('admin.content.store', $type) }}"
         enctype="multipart/form-data"
         class="admin-form admin-card admin-content-form"
+        data-media-upload-base="{{ route('admin.media.uploads.store') }}"
     >
         @csrf
         @if ($isEditing)
@@ -197,9 +202,13 @@
                 </div>
 
                 @foreach ($typeConfig['fields'] as $name => $field)
-                    @php($fieldValue = $name === 'route_key' ? $entry->route_key : data_get($entry->metadata, $name))
+                    @php
+                        $fieldValue = $name === 'route_key' ? $entry->route_key : data_get($entry->metadata, $name);
+                    @endphp
                     @if ($typeConfig['type'] === 'news' && $name === 'homepage_group' && ! in_array($fieldValue, array_keys($field['options']), true))
-                        @php($fieldValue = 'auto')
+                        @php
+                            $fieldValue = 'latest';
+                        @endphp
                     @endif
                     <div class="admin-field {{ $field['type'] === 'textarea' ? 'admin-field-full' : '' }}">
                         <label for="metadata-{{ $name }}">{{ $field['label'] }} @if ($field['required'])<span>*</span>@endif</label>
@@ -222,21 +231,153 @@
                     </div>
                 @endforeach
 
-                @include('admin.media._upload-field', [
-                    'id' => 'image',
-                    'inputName' => 'image',
-                    'sourceName' => 'source_image',
-                    'assetInputName' => 'media_asset_id',
-                    'category' => match ($typeConfig['type']) {
-                        'program' => 'program',
-                        'news' => 'news',
-                        'gallery' => 'gallery',
-                        default => 'general',
-                    },
-                    'existingPath' => $entry->image_path,
-                    'label' => 'Foto / gambar',
-                    'errorKey' => 'image',
-                ])
+                @if ($typeConfig['type'] === 'news')
+                    <div class="admin-field admin-field-full">
+                        <div class="admin-form-section-title">
+                            <h3>Foto dan video berita</h3>
+                            <small>Tambahkan maksimal 20 foto atau video. Pilih file langsung dari perangkat atau gunakan URL publik.</small>
+                        </div>
+                        <div class="admin-form-grid" data-news-media-list>
+                            @foreach ($newsMediaItems as $index => $media)
+                                @php
+                                    $mediaType = data_get($media, 'type', 'image');
+                                    $mediaSource = data_get($media, 'source', 'url');
+                                @endphp
+                                <div class="admin-form-grid admin-field-full" data-news-media-row>
+                                    <div class="admin-field">
+                                        <label for="news-media-{{ $index }}-type">Jenis media</label>
+                                        <select id="news-media-{{ $index }}-type" name="news_media[{{ $index }}][type]" data-news-media-type>
+                                            <option value="image" @selected($mediaType === 'image')>Foto</option>
+                                            <option value="video" @selected($mediaType === 'video')>Video</option>
+                                        </select>
+                                        @error('news_media.'.$index.'.type')<small class="admin-field-error">{{ $message }}</small>@enderror
+                                    </div>
+                                    <div class="admin-field">
+                                        <label for="news-media-{{ $index }}-source">Sumber media</label>
+                                        <select id="news-media-{{ $index }}-source" name="news_media[{{ $index }}][source]" data-news-media-source>
+                                            <option value="url" @selected($mediaSource === 'url')>URL</option>
+                                            <option value="device" @selected($mediaSource === 'device')>File dari perangkat</option>
+                                            <option value="asset" @selected($mediaSource === 'asset') {{ $mediaSource !== 'asset' ? 'hidden' : '' }}>Pertahankan file tersimpan</option>
+                                            @if ($mediaSource === 'existing')
+                                                <option value="existing" selected>Pertahankan media saat ini</option>
+                                            @endif
+                                        </select>
+                                        @error('news_media.'.$index.'.source')<small class="admin-field-error">{{ $message }}</small>@enderror
+                                    </div>
+                                    <div class="admin-field admin-field-full" data-news-media-url {{ $mediaSource !== 'url' ? 'hidden' : '' }}>
+                                        <label for="news-media-{{ $index }}-url">URL media</label>
+                                        <input
+                                            id="news-media-{{ $index }}-url"
+                                            name="news_media[{{ $index }}][url]"
+                                            type="url"
+                                            value="{{ old('news_media.'.$index.'.url', data_get($media, 'url')) }}"
+                                            maxlength="2048"
+                                            placeholder="https://..."
+                                            {{ $mediaSource !== 'url' ? 'disabled' : '' }}
+                                            {{ $mediaSource === 'url' ? 'required' : '' }}
+                                        >
+                                        @error('news_media.'.$index.'.url')<small class="admin-field-error">{{ $message }}</small>@enderror
+                                    </div>
+                                    <div class="admin-field admin-field-full" data-news-media-file-control {{ $mediaSource !== 'device' ? 'hidden' : '' }}>
+                                        <label for="news-media-{{ $index }}-file">Pilih foto atau video dari perangkat</label>
+                                        <input
+                                            id="news-media-{{ $index }}-file"
+                                            name="news_media[{{ $index }}][file]"
+                                            type="file"
+                                            data-news-media-file
+                                            accept="{{ $mediaType === 'video' ? 'video/mp4,video/webm,video/ogg,.mp4,.m4v,.webm,.ogv,.ogg' : 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif' }}"
+                                            {{ $mediaSource !== 'device' ? 'disabled' : '' }}
+                                            {{ $mediaSource === 'device' ? 'required' : '' }}
+                                        >
+                                        <small data-news-media-file-details></small>
+                                        @error('news_media.'.$index.'.file')<small class="admin-field-error">{{ $message }}</small>@enderror
+                                    </div>
+                                    <input
+                                        type="hidden"
+                                        name="news_media[{{ $index }}][asset_id]"
+                                        value="{{ data_get($media, 'asset_id') }}"
+                                        data-news-media-asset-id
+                                        {{ $mediaSource !== 'asset' ? 'disabled' : '' }}
+                                    >
+                                    @if ($mediaSource === 'existing' && $entry->image_path)
+                                        <div class="admin-field admin-field-full" data-news-media-existing>
+                                            <small>Media saat ini akan dipertahankan jika baris ini tidak dihapus.</small>
+                                            @if ($mediaType === 'image')
+                                                <img src="{{ app(\App\Support\SiteConfiguration::class)->imageUrl($entry->image_path) }}" alt="" style="max-width: 240px; height: auto;">
+                                            @endif
+                                        </div>
+                                    @endif
+                                    <div class="admin-field admin-field-full">
+                                        <button class="admin-button admin-button-secondary" type="button" data-news-media-remove>Hapus media</button>
+                                    </div>
+                                    <div class="admin-field admin-field-full" data-news-media-upload-status role="status" hidden></div>
+                                    <div class="admin-field admin-field-full" data-news-media-upload-progress hidden>
+                                        <progress max="100" value="0" data-news-media-upload-progress-bar></progress>
+                                        <span data-news-media-upload-progress-label></span>
+                                        <button class="admin-button admin-button-secondary" type="button" data-news-media-upload-cancel>Batalkan unggahan</button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <template data-news-media-template>
+                            <div class="admin-form-grid admin-field-full" data-news-media-row>
+                                <div class="admin-field">
+                                    <label for="news-media-__INDEX__-type">Jenis media</label>
+                                    <select id="news-media-__INDEX__-type" name="news_media[__INDEX__][type]" data-news-media-type>
+                                        <option value="image">Foto</option>
+                                        <option value="video">Video</option>
+                                    </select>
+                                </div>
+                                <div class="admin-field">
+                                    <label for="news-media-__INDEX__-source">Sumber media</label>
+                                    <select id="news-media-__INDEX__-source" name="news_media[__INDEX__][source]" data-news-media-source>
+                                        <option value="url">URL</option>
+                                        <option value="device">File dari perangkat</option>
+                                        <option value="asset" hidden>Pertahankan file tersimpan</option>
+                                    </select>
+                                </div>
+                                <div class="admin-field admin-field-full" data-news-media-url>
+                                    <label for="news-media-__INDEX__-url">URL media</label>
+                                    <input id="news-media-__INDEX__-url" name="news_media[__INDEX__][url]" type="url" maxlength="2048" placeholder="https://..." disabled required>
+                                </div>
+                                <div class="admin-field admin-field-full" data-news-media-file-control hidden>
+                                    <label for="news-media-__INDEX__-file">Pilih foto atau video dari perangkat</label>
+                                    <input id="news-media-__INDEX__-file" name="news_media[__INDEX__][file]" type="file" data-news-media-file disabled>
+                                    <small data-news-media-file-details></small>
+                                </div>
+                                <input type="hidden" name="news_media[__INDEX__][asset_id]" value="" data-news-media-asset-id disabled>
+                                <div class="admin-field admin-field-full">
+                                    <button class="admin-button admin-button-secondary" type="button" data-news-media-remove>Hapus media</button>
+                                </div>
+                                <div class="admin-field admin-field-full" data-news-media-upload-status role="status" hidden></div>
+                                <div class="admin-field admin-field-full" data-news-media-upload-progress hidden>
+                                    <progress max="100" value="0" data-news-media-upload-progress-bar></progress>
+                                    <span data-news-media-upload-progress-label></span>
+                                    <button class="admin-button admin-button-secondary" type="button" data-news-media-upload-cancel>Batalkan unggahan</button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <button class="admin-button admin-button-secondary" type="button" data-news-media-add>Tambah foto atau video</button>
+                        @error('news_media')<small class="admin-field-error">{{ $message }}</small>@enderror
+                    </div>
+                @else
+                    @include('admin.media._upload-field', [
+                        'id' => 'image',
+                        'inputName' => 'image',
+                        'sourceName' => 'source_image',
+                        'assetInputName' => 'media_asset_id',
+                        'category' => match ($typeConfig['type']) {
+                            'program' => 'program',
+                            'gallery' => 'gallery',
+                            default => 'general',
+                        },
+                        'existingPath' => $entry->image_path,
+                        'label' => 'Foto / gambar',
+                        'errorKey' => 'image',
+                    ])
+                @endif
 
                 <div class="admin-field">
                     <label for="status">Status publikasi</label>
@@ -248,11 +389,13 @@
                 </div>
 
                 @if ($typeConfig['type'] !== 'principal_welcome')
-                    <div class="admin-field">
-                        <label for="sort_order">Urutan tampil</label>
-                        <input id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $entry->sort_order ?? 0) }}">
-                        @error('sort_order')<small class="admin-field-error">{{ $message }}</small>@enderror
-                    </div>
+                    @if ($typeConfig['type'] !== 'news')
+                        <div class="admin-field">
+                            <label for="sort_order">Urutan tampil</label>
+                            <input id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $entry->sort_order ?? 0) }}">
+                            @error('sort_order')<small class="admin-field-error">{{ $message }}</small>@enderror
+                        </div>
+                    @endif
 
                     <div class="admin-field">
                         <label for="published_at">Tanggal publikasi</label>
@@ -268,15 +411,17 @@
                         </label>
                     @endif
 
-                    <div class="admin-field admin-field-full admin-form-section-title"><h3>Pengaturan SEO (opsional)</h3></div>
-                    <div class="admin-field">
-                        <label for="meta_title">SEO title</label>
-                        <input id="meta_title" name="meta_title" type="text" value="{{ old('meta_title', $entry->meta_title) }}" maxlength="180">
-                    </div>
-                    <div class="admin-field">
-                        <label for="meta_description">Meta description</label>
-                        <textarea id="meta_description" name="meta_description" rows="3" maxlength="320">{{ old('meta_description', $entry->meta_description) }}</textarea>
-                    </div>
+                    @if ($typeConfig['type'] !== 'news')
+                        <div class="admin-field admin-field-full admin-form-section-title"><h3>Pengaturan SEO (opsional)</h3></div>
+                        <div class="admin-field">
+                            <label for="meta_title">SEO title</label>
+                            <input id="meta_title" name="meta_title" type="text" value="{{ old('meta_title', $entry->meta_title) }}" maxlength="180">
+                        </div>
+                        <div class="admin-field">
+                            <label for="meta_description">Meta description</label>
+                            <textarea id="meta_description" name="meta_description" rows="3" maxlength="320">{{ old('meta_description', $entry->meta_description) }}</textarea>
+                        </div>
+                    @endif
                 @endif
             </div>
         @endif

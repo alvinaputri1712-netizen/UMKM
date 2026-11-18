@@ -17,7 +17,6 @@ class SitemapController extends Controller
             ['loc' => route('home'), 'lastmod' => null],
             ['loc' => route('teachers'), 'lastmod' => null],
             ['loc' => route('news.index'), 'lastmod' => null],
-            ['loc' => route('gallery'), 'lastmod' => null],
             ['loc' => route('bkk.jobs'), 'lastmod' => null],
             ['loc' => route('bkk.tracer-study'), 'lastmod' => null],
             ['loc' => route('spmb'), 'lastmod' => null],

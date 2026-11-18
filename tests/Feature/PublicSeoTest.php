@@ -65,9 +65,28 @@ class PublicSeoTest extends TestCase
             ->assertSee('Informasi misi sekolah belum tersedia.')
             ->assertDontSee('Profil Lengkap')
             ->assertDontSee('aria-label="Breadcrumb"', false)
+            ->assertDontSee('class="about-hero"', false)
             ->assertSee('Galeri Sekolah')
             ->assertSee('Belum ada foto galeri sekolah yang dipublikasikan.')
             ->assertDontSee('Perjalanan Sekolah');
+    }
+
+    public function test_about_page_omits_hero_and_keeps_remaining_sections(): void
+    {
+        $response = $this->get(route('about'));
+
+        $response->assertOk()
+            ->assertDontSee('class="about-hero"', false)
+            ->assertSee('class="about-profile"', false)
+            ->assertDontSee('class="about-profile__meta"', false)
+            ->assertSee('Visi Sekolah')
+            ->assertSee('Lokasi Sekolah')
+            ->assertSee('data-lucide="target"', false)
+            ->assertSee('data-lucide="list-checks"', false)
+            ->assertSee('data-lucide="map-pin"', false)
+            ->assertSee('data-lucide="map-pinned"', false)
+            ->assertSee('data-lucide="external-link"', false)
+            ->assertSee('src="https://www.google.com/maps?q=', false);
     }
 
     public function test_about_page_renders_school_identity_and_statistics_from_existing_data(): void
@@ -102,6 +121,7 @@ class PublicSeoTest extends TestCase
         $response->assertOk()
             ->assertSee('Tentang SMK Islamiyah Ciputat')
             ->assertSee('Profil resmi sekolah dari pengaturan admin.')
+            ->assertSee('class="about-profile"', false)
             ->assertSee('/images/10.jpeg')
             ->assertSee('Siswa dan guru SMK Islamiyah Ciputat')
             ->assertSee('Menjadi sekolah kejuruan yang unggul.')

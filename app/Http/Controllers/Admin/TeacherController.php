@@ -191,7 +191,7 @@ class TeacherController extends Controller
         $validated = $request->validate([
             'select_all' => ['nullable', 'boolean'],
             'ids' => ['nullable', 'array'],
-            'ids.*' => ['integer', 'distinct', 'exists:teachers.teachers,id'],
+            'ids.*' => ['integer', 'distinct', 'exists:teachers,id'],
         ]);
 
         $query = Teacher::query();
@@ -379,7 +379,7 @@ class TeacherController extends Controller
 
         if ($path !== null && ($x !== 50.0 || $y !== 24.0)) {
             throw ValidationException::withMessages([
-                'focal_point_x' => 'Foto ini belum terdaftar di Media Manager. Unggah atau pilih media sebelum mengatur posisi fokus.',
+                'focal_point_x' => 'Foto ini belum memiliki data posisi fokus. Unggah foto baru dari perangkat sebelum mengatur posisi fokus.',
             ]);
         }
     }

@@ -27,7 +27,6 @@ class PublicSiteContentSeeder extends Seeder
             'identity.school_name' => 'SMK Islamiyah',
             'identity.location' => 'Ciputat, Tangerang Selatan',
             'identity.logo' => '/images/logo/logo.PNG',
-            'navbar.gallery.visible' => true,
             'home.hero.title' => 'Belajar, Berkarya, dan Menyiapkan Masa Depan',
             'home.hero.description' => 'Kenali lingkungan belajar, program keahlian, dan informasi resmi SMK Islamiyah Ciputat.',
             'home.hero.slogan' => 'Temukan bidang yang sesuai dengan minatmu.',

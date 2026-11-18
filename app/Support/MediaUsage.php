@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\ContentRecord;
 use App\Models\MediaAsset;
+use App\Models\NewsArticle;
 use App\Models\SiteSetting;
 use App\Models\Teacher;
 use Illuminate\Support\Collection;
@@ -46,6 +47,38 @@ class MediaUsage
                 'type' => 'Tenaga Kependidikan',
                 'title' => $teacher->name,
             ];
+        }
+
+        $newsArticles = NewsArticle::query()
+            ->whereNotNull('metadata')
+            ->get(['metadata', 'title']);
+
+        foreach ($newsArticles as $article) {
+            $storedMedia = data_get($article->metadata, 'media', []);
+            foreach (is_array($storedMedia) ? $storedMedia : [] as $media) {
+                if (! is_array($media)) {
+                    continue;
+                }
+
+                foreach ([$media['path'] ?? null, $media['poster_path'] ?? null] as $path) {
+                    if (is_string($path) && in_array($path, $paths, true)) {
+                        $usage[$path][] = [
+                            'type' => 'Berita',
+                            'title' => $article->title,
+                        ];
+                    }
+                }
+            }
+
+            $legacyImages = data_get($article->metadata, 'images', []);
+            foreach (is_array($legacyImages) ? $legacyImages : [] as $path) {
+                if (is_string($path) && in_array($path, $paths, true)) {
+                    $usage[$path][] = [
+                        'type' => 'Berita',
+                        'title' => $article->title,
+                    ];
+                }
+            }
         }
 
         $encodedPaths = collect($paths)->map(fn (string $path): string => json_encode($path, JSON_THROW_ON_ERROR));

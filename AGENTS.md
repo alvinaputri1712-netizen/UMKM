@@ -31,11 +31,11 @@
 - Use `php artisan make:*` / `--no-interaction`; create factories/seeders with new models when appropriate. Prefer named routes/`route()`. Follow existing sibling conventions; check for reusable Blade/components before adding new ones.
 - `.ai/rules` is referenced by Boost guidance but `.ai/rules/index.md` is not present in this repo snapshot — if rules appear later, follow their path mapping before editing scoped files.
 
-# Database notes (tenaga pendidik terpisah)
+# Database notes
 
-- Koneksi `teachers` (default SQLite file `database/teachers.sqlite`) didefinisikan di `config/database.php` + `.env.example` (`TEACHERS_DB_*`). Model `App\Models\Teacher` memakai `$connection = 'teachers'`.
-- Migrasi tenaga pendidik **hanya** untuk DB terpisah: `php artisan migrate --database=teachers --path=database/migrations/2026_11_06_192016_create_teachers_table.php --force` (jangan `migrate --database=teachers` tanpa `--path`, agar migrasi utama tidak masuk DB teachers). `composer run setup`/migrasi default **tidak** otomatis membuat skema teachers.
-- `phpunit.xml` mengarahkan `teachers` ke SQLite `:memory:`; `tests/TestCase.php` menjalankan migrasi teachers untuk env `:memory:`. Hapus tenaga pendidik di admin (`TeacherController@destroy`) menghapus record DB + membersihkan gambar via `PublicImageStorage::deleteIfUnused` (cek juga tabel `teachers`).
+- Semua model, termasuk `App\Models\Teacher`, memakai koneksi database default. Lingkungan aplikasi menggunakan MySQL `smkiciputat`; tes tetap terisolasi pada SQLite `:memory:` melalui `phpunit.xml`.
+- Migrasi tabel tenaga pendidik memakai koneksi default. Jangan menjalankan migrasi secara destruktif atau memindahkan data antar-database tanpa persetujuan pengguna.
+- Hapus tenaga pendidik di admin (`TeacherController@destroy`) menghapus record dan membersihkan gambar melalui `PublicImageStorage::deleteIfUnused`.
 
 - `AGENTS.md` and `CLAUDE.md` both contain Boost-style guidance (CLAUDE mirrors the Boost block). The “Agent Working Rules” section below is project-specific process for this repo; preserve it unless the user asks to change it.
 </laravel-boost-guidelines>

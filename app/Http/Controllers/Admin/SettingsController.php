@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MediaAsset;
 use App\Models\SiteSetting;
+use App\Support\MediaLibrary;
 use App\Support\PublicImageStorage;
 use App\Support\SiteConfiguration;
 use App\Support\VideoSource;
@@ -46,6 +47,7 @@ class SettingsController extends Controller
         Request $request,
         SiteConfiguration $configuration,
         PublicImageStorage $images,
+        MediaLibrary $mediaLibrary,
     ): RedirectResponse {
         $sections = config('site-content.sections');
         $validated = $request->validate([
@@ -62,7 +64,7 @@ class SettingsController extends Controller
 
             if ($field['type'] === 'video_source') {
                 $sourcePath = $settingPath.'.source';
-                $rules[$sourcePath] = ['sometimes', Rule::in(['none', 'media', 'url'])];
+                $rules[$sourcePath] = ['sometimes', Rule::in(['none', 'media', 'url', 'upload', 'existing'])];
                 $rules[$settingPath.'.url'] = [
                     'exclude_unless:'.$sourcePath.',url',
                     'required',
@@ -83,6 +85,14 @@ class SettingsController extends Controller
                         fn ($query) => $query->where('media_type', 'video'),
                     ),
                 ];
+                $rules['video_uploads.'.$section.'.'.$fieldName] = [
+                    'exclude_unless:'.$sourcePath.',upload',
+                    'required',
+                    'file',
+                    'mimetypes:video/mp4,video/webm,video/ogg',
+                    'extensions:mp4,m4v,webm,ogv,ogg',
+                    'max:'.(config('media.max_upload_mb') * 1024),
+                ];
 
                 continue;
             }
@@ -92,6 +102,31 @@ class SettingsController extends Controller
                 'number' => ['nullable', 'integer', 'between:-1000,1000'],
                 'url' => ['nullable', 'url', 'regex:/^https?:\/\/\S+$/i', 'max:2048'],
                 'link' => ['nullable', 'string', 'regex:/^(https?:\/\/\S+|\/(?!\/)\S*)$/i', 'max:2048'],
+                'coordinates' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                    function (string $attribute, mixed $value, \Closure $fail): void {
+                        if (! is_string($value) || trim($value) === '') {
+                            return;
+                        }
+
+                        $coordinates = array_map('trim', explode(',', $value));
+
+                        if (count($coordinates) !== 2 || ! is_numeric($coordinates[0]) || ! is_numeric($coordinates[1])) {
+                            $fail('Masukkan koordinat dengan format lintang, bujur.');
+
+                            return;
+                        }
+
+                        $latitude = (float) $coordinates[0];
+                        $longitude = (float) $coordinates[1];
+
+                        if ($latitude < -90 || $latitude > 90 || $longitude < -180 || $longitude > 180) {
+                            $fail('Lintang harus antara -90 dan 90, dan bujur antara -180 dan 180.');
+                        }
+                    },
+                ],
                 'youtube' => ['nullable', 'regex:/^[A-Za-z0-9_-]{11}$/'],
                 'email' => ['nullable', 'email', 'max:255'],
                 'tel', 'text' => ['nullable', 'string', 'max:500'],
@@ -135,7 +170,7 @@ class SettingsController extends Controller
             if ($field['type'] === 'video_source') {
                 $source = Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.source');
 
-                if ($source === null) {
+                if ($source === null || $source === 'existing') {
                     continue;
                 }
 
@@ -145,6 +180,12 @@ class SettingsController extends Controller
                         'video',
                     ),
                     'url' => trim(Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.url')),
+                    'upload' => $mediaLibrary->storeVideo(
+                        $request->file('video_uploads.'.$section.'.'.$fieldName),
+                        'general',
+                        'original',
+                        Auth::guard('admin')->id(),
+                    )->publicPath(),
                     default => null,
                 };
             } elseif ($field['type'] === 'image') {
@@ -193,6 +234,8 @@ class SettingsController extends Controller
         foreach ($oldImages as $oldImage) {
             $images->deleteIfUnused($oldImage);
         }
+
+        $configuration->forgetCache();
 
         return redirect()
             ->route('admin.settings.index', ['section' => $section])

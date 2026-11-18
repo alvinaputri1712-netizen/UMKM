@@ -10,7 +10,7 @@
             <h2>Kelola {{ mb_strtolower($typeConfig['plural']) }}</h2>
             <p>
                 @if ($typeConfig['type'] === 'news')
-                    Posisi beranda ditentukan saat menambah atau mengedit berita. Slot berita utama hanya satu.
+                    Beranda menampilkan satu berita utama dan tiga berita terbaru berdasarkan tanggal publikasi. Berita lampau tetap tersedia di halaman Berita.
                 @else
                     Data yang berstatus published akan ditampilkan pada website publik.
                 @endif
@@ -75,7 +75,7 @@
                                 @if ($typeConfig['type'] === 'news')
                                     @php($homepageGroup = data_get($entry->metadata, 'homepage_group'))
                                     @if (! in_array($homepageGroup, array_keys($typeConfig['fields']['homepage_group']['options']), true))
-                                        @php($homepageGroup = 'auto')
+                                        @php($homepageGroup = 'latest')
                                     @endif
                                     @php($homepageLabel = $typeConfig['fields']['homepage_group']['options'][$homepageGroup])
                                     @if ($homepageGroup === 'featured' && $entry->status === 'draft')

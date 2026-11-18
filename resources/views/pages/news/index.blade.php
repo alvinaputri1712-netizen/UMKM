@@ -33,26 +33,33 @@
 
             <div class="news-portal-layout{{ $featuredArticle ? '' : ' news-portal-layout--without-featured' }}">
                     @if ($featuredArticle)
+                        @php
+                            $featuredMediaPreview = $featuredArticle->media_items[0] ?? null;
+                        @endphp
                         <article class="news-featured">
                             <a
-                                class="news-featured__link{{ $featuredArticle->image_path ? '' : ' news-featured__link--without-image' }}"
+                                class="news-featured__link{{ $featuredMediaPreview && ($featuredMediaPreview['type'] === 'image' || $featuredMediaPreview['poster']) ? '' : ' news-featured__link--without-image' }}"
                                 href="{{ route('news.show', $featuredArticle->slug) }}"
                             >
-                                @if ($featuredArticle->image_path)
+                                @if ($featuredMediaPreview && ($featuredMediaPreview['type'] === 'image' || $featuredMediaPreview['poster']))
                                     <figure class="news-featured__image">
                                         <span class="news-image-fallback" data-news-image-fallback hidden aria-hidden="true">
                                             <i data-lucide="newspaper"></i>
                                         </span>
                                         <img
-                                            src="{{ $siteConfiguration->imageUrl($featuredArticle->image_path) }}"
-                                            alt="Foto {{ $featuredArticle->title }}"
+                                            src="{{ $siteConfiguration->imageUrl($featuredMediaPreview['type'] === 'image' ? $featuredMediaPreview['src'] : $featuredMediaPreview['poster']) }}"
+                                            alt="{{ $featuredMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $featuredArticle->title }}"
                                             fetchpriority="high"
                                             data-news-image
                                         >
                                     </figure>
                                 @else
                                     <span class="news-featured__fallback" aria-hidden="true">
-                                        <i data-lucide="newspaper"></i>
+                                        @if ($featuredMediaPreview && $featuredMediaPreview['type'] === 'video')
+                                            <span>▶</span>
+                                        @else
+                                            <i data-lucide="newspaper"></i>
+                                        @endif
                                     </span>
                                 @endif
                                 <div class="news-featured__copy">
@@ -95,16 +102,19 @@
                             @if ($popularArticles->isNotEmpty())
                                 <ol class="news-popular-list">
                                     @foreach ($popularArticles as $article)
+                                        @php
+                                            $articleMediaPreview = $article->media_items[0] ?? null;
+                                        @endphp
                                         <li class="news-popular-item">
                                             <span class="news-popular-item__rank" aria-label="Urutan {{ $loop->iteration }}">{{ $loop->iteration }}</span>
                                             <a href="{{ route('news.show', $article->slug) }}">
-                                                @if ($article->image_path)
+                                                @if ($articleMediaPreview && ($articleMediaPreview['type'] === 'image' || $articleMediaPreview['poster']))
                                                     <span class="news-popular-item__image">
                                                         <span class="news-image-fallback" data-news-image-fallback hidden aria-hidden="true">
                                                             <i data-lucide="newspaper"></i>
                                                         </span>
                                                         <img
-                                                            src="{{ $siteConfiguration->imageUrl($article->image_path) }}"
+                                                            src="{{ $siteConfiguration->imageUrl($articleMediaPreview['type'] === 'image' ? $articleMediaPreview['src'] : $articleMediaPreview['poster']) }}"
                                                             alt=""
                                                             loading="lazy"
                                                             data-news-image
@@ -228,23 +238,30 @@
                     @if ($articles->isNotEmpty())
                         <div class="news-card-grid">
                             @foreach ($articles as $article)
+                                @php
+                                    $articleMediaPreview = $article->media_items[0] ?? null;
+                                @endphp
                                 <article class="news-card">
                                     <a class="news-card__link" href="{{ route('news.show', $article->slug) }}">
-                                        @if ($article->image_path)
+                                        @if ($articleMediaPreview && ($articleMediaPreview['type'] === 'image' || $articleMediaPreview['poster']))
                                             <figure class="news-card__image">
                                                 <span class="news-image-fallback" data-news-image-fallback hidden aria-hidden="true">
                                                     <i data-lucide="newspaper"></i>
                                                 </span>
                                                 <img
-                                                    src="{{ $siteConfiguration->imageUrl($article->image_path) }}"
-                                                    alt="Foto {{ $article->title }}"
+                                                    src="{{ $siteConfiguration->imageUrl($articleMediaPreview['type'] === 'image' ? $articleMediaPreview['src'] : $articleMediaPreview['poster']) }}"
+                                                    alt="{{ $articleMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
                                                     loading="lazy"
                                                     data-news-image
                                                 >
                                             </figure>
                                         @else
                                             <span class="news-card__image news-card__image--empty" aria-hidden="true">
-                                                <i data-lucide="newspaper"></i>
+                                                @if ($articleMediaPreview && $articleMediaPreview['type'] === 'video')
+                                                    <span>▶</span>
+                                                @else
+                                                    <i data-lucide="newspaper"></i>
+                                                @endif
                                             </span>
                                         @endif
                                         <div class="news-card__copy">

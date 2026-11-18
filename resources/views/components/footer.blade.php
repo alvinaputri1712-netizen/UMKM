@@ -84,7 +84,6 @@
                 <a href="{{ route('teachers') }}" class="footer-link">Tenaga Kependidikan</a>
                 <a href="{{ route('spmb') }}" class="footer-link">SPMB</a>
                 <a href="{{ route('news.index') }}" class="footer-link">Berita</a>
-                <a href="{{ route('gallery') }}" class="footer-link">Galeri</a>
             </nav>
 
             <nav class="footer-column" aria-label="Program keahlian footer">
@@ -125,7 +124,7 @@
             <span>© {{ date('Y') }} {{ $siteSettings['identity.school_name'] }}. All Rights Reserved.</span>
             <span class="footer-bottom__right">
                 <span class="footer-bottom__mark" aria-hidden="true"></span>
-                Website Informasi Sekolah
+                {{ filled($siteSettings['identity.copyright']) ? $siteSettings['identity.copyright'] : 'Website Informasi Sekolah' }}
             </span>
         </div>
     </div>

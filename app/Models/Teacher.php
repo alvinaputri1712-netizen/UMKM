@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Teacher extends Model
 {
-    protected $connection = 'teachers';
-
     protected $fillable = [
         'name',
         'slug',

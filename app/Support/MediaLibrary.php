@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\ContentRecord;
 use App\Models\MediaAsset;
+use App\Models\NewsArticle;
 use App\Models\SiteSetting;
 use App\Models\Teacher;
 use Illuminate\Http\UploadedFile;
@@ -253,14 +254,74 @@ class MediaLibrary
                 ->whereIn('image_path', $oldPaths)
                 ->get(['id', 'image_path']);
         }
+        $newsArticles = NewsArticle::query()
+            ->whereNotNull('metadata')
+            ->get(['id', 'metadata'])
+            ->filter(function (NewsArticle $article) use ($oldPaths, $current): bool {
+                $media = data_get($article->metadata, 'media', []);
+                $images = data_get($article->metadata, 'images', []);
+
+                foreach (is_array($media) ? $media : [] as $item) {
+                    if (
+                        is_array($item)
+                        && (
+                            in_array($item['path'] ?? null, $oldPaths, true)
+                            || in_array($item['poster_path'] ?? null, $oldPaths, true)
+                            || (int) ($item['asset_id'] ?? 0) === $current->id
+                        )
+                    ) {
+                        return true;
+                    }
+                }
+
+                return is_array($images) && collect($images)->contains(
+                    fn (mixed $path): bool => in_array($path, $oldPaths, true),
+                );
+            })
+            ->values();
         $teachers = Teacher::query()->whereIn('image_path', $oldPaths)->get(['id', 'image_path']);
         $encodedOldPaths = collect($oldPaths)->map(fn (string $path): string => json_encode($path, JSON_THROW_ON_ERROR));
         $settings = SiteSetting::query()->whereIn('value', $encodedOldPaths)->get(['key', 'value']);
 
         try {
-            DB::transaction(function () use ($contentRecords, $oldPaths, $newPath, $encodedOldPaths): void {
+            DB::transaction(function () use ($contentRecords, $newsArticles, $oldPaths, $newPath, $encodedOldPaths, $current, $replacement): void {
                 foreach (array_keys($contentRecords) as $model) {
                     $model::query()->whereIn('image_path', $oldPaths)->update(['image_path' => $newPath]);
+                }
+
+                foreach ($newsArticles as $article) {
+                    $metadata = $article->metadata ?? [];
+                    $media = data_get($metadata, 'media', []);
+
+                    if (is_array($media)) {
+                        foreach ($media as &$item) {
+                            if (! is_array($item)) {
+                                continue;
+                            }
+
+                            if (in_array($item['path'] ?? null, $oldPaths, true)) {
+                                $item['path'] = $newPath;
+                            }
+                            if (in_array($item['poster_path'] ?? null, $oldPaths, true)) {
+                                $item['poster_path'] = $newPath;
+                            }
+                            if ((int) ($item['asset_id'] ?? 0) === $current->id) {
+                                $item['asset_id'] = $replacement->id;
+                            }
+                        }
+                        unset($item);
+                        $metadata['media'] = $media;
+                    }
+
+                    $images = data_get($metadata, 'images', []);
+                    if (is_array($images)) {
+                        $metadata['images'] = array_map(
+                            fn (mixed $path): mixed => in_array($path, $oldPaths, true) ? $newPath : $path,
+                            $images,
+                        );
+                    }
+
+                    $article->update(['metadata' => $metadata]);
                 }
 
                 SiteSetting::query()->whereIn('value', $encodedOldPaths)->update([
@@ -273,11 +334,15 @@ class MediaLibrary
             );
         } catch (Throwable $exception) {
             try {
-                DB::transaction(function () use ($contentRecords, $settings): void {
+                DB::transaction(function () use ($contentRecords, $newsArticles, $settings): void {
                     foreach ($contentRecords as $model => $entries) {
                         foreach ($entries as $entry) {
                             $model::query()->whereKey($entry->id)->update(['image_path' => $entry->image_path]);
                         }
+                    }
+
+                    foreach ($newsArticles as $article) {
+                        NewsArticle::query()->whereKey($article->id)->update(['metadata' => $article->metadata]);
                     }
 
                     foreach ($settings as $setting) {

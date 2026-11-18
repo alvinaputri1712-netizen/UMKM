@@ -1,4 +1,4 @@
-import { createIcons, Menu, ChevronDown, ArrowUpRight, ArrowRight, GraduationCap, BookOpen, Users, UserCheck, CalendarDays, Newspaper, Flame, Folder, Grid2x2, ClipboardList, Trophy, MapPin, School, Target, CheckCircle2, Phone, Mail, ShieldCheck, UserRound, AtSign, LockKeyhole, Eye, EyeOff, KeyRound, CircleAlert, Info, ArrowLeft, Check, LayoutDashboard, BriefcaseBusiness, Building2, Search, Filter, RefreshCw, ChartNoAxesColumnIncreasing, FilePenLine, Handshake, Images, HardDrive, Settings2, UsersRound, CircleUserRound, ExternalLink, PanelLeftClose, PanelLeftOpen, LogOut, Activity } from 'lucide';
+import { createIcons, Menu, ChevronDown, ArrowUpRight, ArrowRight, GraduationCap, BookOpen, Users, UserCheck, CalendarDays, Newspaper, Flame, Folder, Grid2x2, ClipboardList, Trophy, MapPin, MapPinned, School, Target, ListChecks, CircleCheck, Phone, Mail, ShieldCheck, UserRound, AtSign, LockKeyhole, Eye, EyeOff, KeyRound, CircleAlert, Info, ArrowLeft, Check, LayoutDashboard, BriefcaseBusiness, Building2, Search, Filter, RefreshCw, ChartNoAxesColumnIncreasing, FilePenLine, Handshake, Images, HardDrive, Settings2, UsersRound, CircleUserRound, ExternalLink, PanelLeftClose, PanelLeftOpen, LogOut, Activity } from 'lucide';
 
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -23,9 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ClipboardList,
             Trophy,
             MapPin,
+            MapPinned,
             School,
             Target,
-            CheckCircle2,
+            ListChecks,
+            CircleCheck,
             Phone,
             Mail,
             Check,
@@ -60,6 +62,129 @@ document.addEventListener('DOMContentLoaded', () => {
             LogOut,
             Activity,
         },
+    });
+
+    document.querySelectorAll('[data-news-media-list]').forEach((list) => {
+        const section = list.closest('.admin-field-full');
+        const addButton = section?.querySelector('[data-news-media-add]');
+        const template = section?.querySelector('[data-news-media-template]');
+
+        if (!addButton || !(template instanceof HTMLTemplateElement)) {
+            return;
+        }
+
+        const updateRow = (row) => {
+            const type = row.querySelector('[data-news-media-type]')?.value;
+            const source = row.querySelector('[data-news-media-source]')?.value;
+            const urlControl = row.querySelector('[data-news-media-url]');
+            const urlInput = urlControl?.querySelector('input');
+            const fileControl = row.querySelector('[data-news-media-file-control]');
+            const fileInput = row.querySelector('[data-news-media-file]');
+            const fileDetails = row.querySelector('[data-news-media-file-details]');
+            const assetInput = row.querySelector('[data-news-media-asset-id]');
+            const assetOption = Array.from(row.querySelector('[data-news-media-source]')?.options || [])
+                .find((option) => option.value === 'asset');
+            const existingControl = row.querySelector('[data-news-media-existing]');
+
+            if (urlControl && urlInput) {
+                urlControl.hidden = source !== 'url';
+                urlInput.disabled = source !== 'url';
+                urlInput.required = source === 'url';
+            }
+
+            if (fileControl && fileInput) {
+                fileControl.hidden = source !== 'device';
+                fileInput.disabled = source !== 'device';
+                fileInput.required = source === 'device';
+                fileInput.accept = type === 'video'
+                    ? 'video/mp4,video/webm,video/ogg,.mp4,.m4v,.webm,.ogv,.ogg'
+                    : 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif';
+                if (source !== 'device' && fileInput.value) {
+                    fileInput.value = '';
+                }
+            }
+
+            if (fileDetails) {
+                fileDetails.textContent = fileInput?.files?.[0]?.name || '';
+            }
+
+            if (assetInput) {
+                assetInput.disabled = source !== 'asset';
+                if (source !== 'asset') {
+                    assetInput.value = '';
+                }
+            }
+
+            if (assetOption) {
+                assetOption.hidden = source !== 'asset';
+            }
+
+            if (existingControl) {
+                existingControl.hidden = source !== 'existing';
+            }
+        };
+
+        const updateAddButton = () => {
+            addButton.disabled = list.querySelectorAll('[data-news-media-row]').length >= 20;
+        };
+
+        list.querySelectorAll('[data-news-media-row]').forEach(updateRow);
+        updateAddButton();
+
+        list.addEventListener('change', (event) => {
+            const row = event.target instanceof Element
+                ? event.target.closest('[data-news-media-row]')
+                : null;
+
+            if (row) {
+                updateRow(row);
+            }
+        });
+
+        list.addEventListener('click', (event) => {
+            const removeButton = event.target instanceof Element
+                ? event.target.closest('[data-news-media-remove]')
+                : null;
+
+            if (!removeButton) {
+                return;
+            }
+
+            removeButton.closest('[data-news-media-row]')?.remove();
+            updateAddButton();
+        });
+
+        addButton.addEventListener('click', () => {
+            const index = list.querySelectorAll('[data-news-media-row]').length;
+            const rowTemplate = document.createElement('template');
+            rowTemplate.innerHTML = template.innerHTML.replace(/__INDEX__/g, String(index));
+            const row = rowTemplate.content.firstElementChild;
+
+            if (!row) {
+                return;
+            }
+
+            list.append(row);
+            updateRow(row);
+            updateAddButton();
+        });
+    });
+
+    document.querySelectorAll('.admin-settings-form').forEach((form) => {
+        form.addEventListener('submit', () => {
+            const submitButton = form.querySelector('[data-settings-submit]');
+            const submitLabel = form.querySelector('[data-settings-submit-label]');
+
+            if (!submitButton) {
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.setAttribute('aria-busy', 'true');
+            if (submitLabel) {
+                submitLabel.textContent = 'Menyimpan...';
+            }
+        });
     });
 
     AOS.init({
@@ -591,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dropdown.addEventListener('pointerenter', (event) => {
             if (
                 event.pointerType !== 'mouse' ||
-                window.innerWidth <= 1100 ||
+                window.innerWidth <= 1199 ||
                 !window.matchMedia('(hover: hover) and (pointer: fine)').matches
             ) {
                 return;
@@ -676,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Reset hover di layar kecil dan tutup menu seluler saat kembali ke desktop.
     window.addEventListener('resize', () => {
-        if (window.innerWidth <= 1100) {
+        if (window.innerWidth <= 1199) {
             dropdowns.forEach((dropdown) => {
                 dropdown.classList.remove('hover-open');
                 dropdown.querySelector('.dropdown-toggle')
@@ -684,7 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        if (window.innerWidth > 900 && navMenu.classList.contains('open')) {
+        if (window.innerWidth > 1199 && navMenu.classList.contains('open')) {
             closeMobileMenu();
         }
     });

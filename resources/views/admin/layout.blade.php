@@ -53,9 +53,9 @@
 
             @if (! auth('admin')->user()?->isEditor())
                 <p class="admin-nav-caption">Pengelolaan</p>
-                <a href="{{ route('admin.media.index') }}" title="Media Manager" class="admin-nav-link {{ request()->routeIs('admin.media.*') ? 'is-active' : '' }}">
-                    <i class="admin-nav-icon" data-lucide="hard-drive" aria-hidden="true"></i>
-                    <span class="admin-nav-label">Media Manager</span>
+                <a href="{{ route('admin.settings.index', ['section' => 'identity']) }}" title="Atur Website" class="admin-nav-link {{ request()->routeIs('admin.settings.*') ? 'is-active' : '' }}">
+                    <i class="admin-nav-icon" data-lucide="settings-2" aria-hidden="true"></i>
+                    <span class="admin-nav-label">Atur Website</span>
                 </a>
             @endif
             @if (auth('admin')->user()?->isSuperAdmin())

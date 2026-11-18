@@ -151,7 +151,7 @@ class ContentController extends Controller
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit(6)
-            ->get(['id', 'slug', 'title', 'category', 'image_path', 'published_at']);
+            ->get(['id', 'slug', 'title', 'category', 'image_path', 'published_at', 'metadata']);
 
         return view('pages.news.show', [
             'article' => $article,

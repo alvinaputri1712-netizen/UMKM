@@ -328,10 +328,12 @@ const sendUploadRequest = (method, url, body, token, onProgress, setRequest) => 
     request.send(body instanceof FormData ? body : JSON.stringify(body));
 });
 
-const uploadFile = async (formData, form, progress, onCancel) => {
+const uploadFile = async (formData, form, progress, onCancel, mediaInputOverride = null) => {
     const file = formData.get('file');
     const sourceFile = formData.get('source_file');
     if (!(file instanceof File)) throw new Error('Pilih file media terlebih dahulu.');
+    const isVideo = file.type.startsWith('video/')
+        || /\.(mp4|m4v|webm|ogv|ogg)$/i.test(file.name);
 
     const uploadBase = form.dataset.mediaUploadBase
         || form.querySelector('[data-media-field]')?.dataset.mediaUploadBase;
@@ -375,7 +377,7 @@ const uploadFile = async (formData, form, progress, onCancel) => {
         filename: file.name,
         mime_type: file.type,
         size: file.size,
-        media_type: file.type.startsWith('video/') ? 'video' : 'image',
+        media_type: isVideo ? 'video' : 'image',
         category,
         quality,
         duration_seconds: formData.get('duration_seconds') || null,
@@ -444,7 +446,7 @@ const uploadFile = async (formData, form, progress, onCancel) => {
 
     if (cancelled) throw new Error('Unggahan dibatalkan.');
     const asset = await request('POST', `${uploadBase}/${uploadId}/complete`, {});
-    const mediaInput = form.querySelector('[data-media-file]');
+    const mediaInput = mediaInputOverride || form.querySelector('[data-media-file]');
     const generatedPoster = mediaInput ? generatedVideoPosters.get(mediaInput) : null;
     if (asset.type === 'video' && generatedPoster && asset.poster_url) {
         const posterData = new FormData();
@@ -464,7 +466,9 @@ const uploadFile = async (formData, form, progress, onCancel) => {
 const initializeMediaInputs = () => {
     document.querySelectorAll('[data-media-managed], [data-media-file]').forEach((input) => {
         const form = input.closest('form');
-        const wrapper = input.closest('[data-media-field]') || form;
+        const wrapper = input.closest('[data-media-field]')
+            || input.closest('[data-media-direct-video-file-control]')
+            || form;
         const preview = wrapper.querySelector('[data-media-preview]');
         const imagePreview = wrapper.querySelector('[data-media-image-preview]')
             || (input.dataset.mediaPreview ? wrapper.querySelector(input.dataset.mediaPreview) : null);
@@ -531,75 +535,162 @@ const initializeMediaInputs = () => {
             }
         });
     });
+};
 
-    document.querySelectorAll('[data-media-upload-form]').forEach((form) => {
-        const input = form.querySelector('[data-media-file]');
-        const progress = form.querySelector('[data-media-progress]');
-        const progressBar = form.querySelector('[data-media-progress-bar]');
-        const progressValue = form.querySelector('[data-media-progress-value]');
-        const progressStatus = form.querySelector('[data-media-progress-status]');
-        const status = form.querySelector('[data-media-status]');
-        const submit = form.querySelector('[data-media-submit]');
+const initializeNewsMediaUploads = () => {
+    document.querySelectorAll('[data-news-media-list]').forEach((list) => {
+        const form = list.closest('form');
+        if (!form) return;
+
         let cancelUpload = null;
-
         form.addEventListener('submit', async (event) => {
-            if (!input?.files?.[0] || form.dataset.mediaSubmitted === 'true') return;
+            const pendingRows = [...list.querySelectorAll('[data-news-media-row]')].filter((row) => (
+                row.querySelector('[data-news-media-source]')?.value === 'device'
+                && row.querySelector('[data-news-media-file]')?.files?.length
+            ));
+
+            if (pendingRows.length === 0) return;
 
             event.preventDefault();
-            progress.hidden = false;
-            submit.disabled = true;
-            status.textContent = '';
-            const data = new FormData(form);
-            data.set('upload_scope', input.id || 'media-upload');
+            const submitter = event.submitter;
+            if (submitter) submitter.disabled = true;
+            let activeRow = null;
 
             try {
-                const asset = await uploadFile(data, form, (fraction, message) => {
-                    const percent = Math.round(fraction * 100);
-                    progressBar.value = percent;
-                    progressValue.textContent = `${percent}%`;
-                    progressStatus.textContent = message || `Mengunggah ${input.files[0].name}`;
-                }, (cancel) => { cancelUpload = cancel; });
-                progressStatus.textContent = asset.poster_error
-                    ? 'Media tersimpan, tetapi thumbnail otomatis gagal dibuat.'
-                    : asset.replacement_cleanup_pending
-                    ? 'Penggantian selesai; pembersihan file lama tertunda.'
-                    : 'Selesai';
-                status.textContent = asset.poster_error
-                    ? `Media berhasil diunggah, tetapi thumbnail otomatis gagal: ${asset.poster_error}`
-                    : asset.replacement_cleanup_pending
-                    ? 'Media diganti. File lama masih tersimpan dan dapat dihapus setelah diperiksa.'
-                    : 'Media berhasil diunggah.';
-                form.dataset.mediaSubmitted = 'true';
-                window.setTimeout(
-                    () => window.location.reload(),
-                    asset.poster_error || asset.replacement_cleanup_pending ? 1800 : 300,
-                );
-                return;
+                for (const row of pendingRows) {
+                    activeRow = row;
+                    const type = row.querySelector('[data-news-media-type]')?.value;
+                    const fileInput = row.querySelector('[data-news-media-file]');
+                    const file = fileInput?.files?.[0];
+                    const status = row.querySelector('[data-news-media-upload-status]');
+                    const progress = row.querySelector('[data-news-media-upload-progress]');
+                    const progressBar = row.querySelector('[data-news-media-upload-progress-bar]');
+                    const progressLabel = row.querySelector('[data-news-media-upload-progress-label]');
+                    const assetInput = row.querySelector('[data-news-media-asset-id]');
+                    const sourceSelect = row.querySelector('[data-news-media-source]');
+
+                    if (!(file instanceof File) || !assetInput || !sourceSelect) {
+                        throw new Error('Pilih file foto atau video terlebih dahulu.');
+                    }
+
+                    const fileIsVideo = file.type.startsWith('video/')
+                        || /\.(mp4|m4v|webm|ogv|ogg)$/i.test(file.name);
+                    if ((type === 'video') !== fileIsVideo) {
+                        throw new Error(type === 'video'
+                            ? 'Pilih file video untuk media bertipe video.'
+                            : 'Pilih file foto untuk media bertipe foto.');
+                    }
+
+                    const data = new FormData();
+                    data.append('file', file, file.name);
+                    data.append('category', 'news');
+                    data.append('quality', type === 'image' ? 'optimized' : 'original');
+                    data.append('upload_scope', fileInput.id);
+                    progress.hidden = false;
+                    status.hidden = true;
+
+                    const asset = await uploadFile(data, form, (fraction, message) => {
+                        const percent = Math.round(fraction * 100);
+                        progressBar.value = percent;
+                        progressLabel.textContent = message || `Mengunggah ${file.name}`;
+                    }, (cancel) => { cancelUpload = cancel; });
+
+                    if (asset.type !== type) {
+                        throw new Error('Jenis file yang diunggah tidak sesuai dengan jenis media.');
+                    }
+
+                    assetInput.value = String(asset.id);
+                    sourceSelect.value = 'asset';
+                    sourceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    progress.hidden = true;
+                    status.textContent = `${asset.name} tersimpan. Klik Simpan untuk menerbitkan berita.`;
+                    status.hidden = false;
+                }
+
+                if (submitter) {
+                    form.requestSubmit(submitter);
+                } else {
+                    form.requestSubmit();
+                }
             } catch (error) {
-                status.textContent = error.message;
-                submit.disabled = false;
+                const status = activeRow?.querySelector('[data-news-media-upload-status]');
+                if (status) {
+                    status.textContent = error.message || 'Unggahan gagal. Silakan coba kembali.';
+                    status.hidden = false;
+                }
+                if (submitter) submitter.disabled = false;
             } finally {
                 cancelUpload = null;
             }
         });
 
-        form.querySelector('[data-media-cancel]')?.addEventListener('click', () => cancelUpload?.());
+        list.querySelectorAll('[data-news-media-upload-cancel]').forEach((button) => {
+            button.addEventListener('click', () => cancelUpload?.());
+        });
     });
+};
 
+const initializeDirectVideoSources = () => {
+    document.querySelectorAll('[data-media-direct-video-source]').forEach((sourceSelect) => {
+        const inputId = sourceSelect.dataset.mediaDirectVideoSourceFor;
+        const field = sourceSelect.closest('.admin-field');
+        const fileInput = inputId ? document.getElementById(inputId) : null;
+        const assetInput = inputId
+            ? document.querySelector(`[data-media-direct-video-asset-for="${CSS.escape(inputId)}"]`)
+            : null;
+        const urlControl = field?.querySelector('[data-media-direct-video-url-control]');
+        const urlInput = urlControl?.querySelector('input');
+        const fileControl = fileInput?.closest('[data-media-direct-video-file-control]');
+        const assetOption = Array.from(sourceSelect.options).find((option) => option.value === 'media');
+
+        const update = () => {
+            const source = sourceSelect.value;
+            if (urlControl && urlInput) {
+                urlControl.hidden = source !== 'url';
+                urlInput.disabled = source !== 'url';
+                urlInput.required = source === 'url';
+            }
+            if (fileControl && fileInput) {
+                fileControl.hidden = source !== 'upload';
+                fileInput.disabled = source !== 'upload';
+                fileInput.required = source === 'upload';
+            }
+            if (assetInput) {
+                assetInput.disabled = source !== 'media';
+            }
+            if (assetOption) {
+                assetOption.hidden = source !== 'media';
+            }
+        };
+
+        sourceSelect.addEventListener('change', update);
+        fileInput?.addEventListener('change', () => {
+            const details = fileControl?.querySelector('[data-media-direct-video-file-details]');
+            if (details) details.textContent = fileInput.files?.[0]?.name || '';
+        });
+        update();
+    });
+};
+
+const initializeMediaUploads = () => {
     document.querySelectorAll('form').forEach((form) => {
         const inputs = [...form.querySelectorAll('[data-media-managed]')];
-        if (inputs.length === 0) return;
-
-        const uploadUrl = inputs[0].closest('[data-media-field]')?.dataset.mediaUploadUrl;
-        if (!uploadUrl) return;
+        const videoInputs = [...form.querySelectorAll('[data-media-direct-video]')];
+        if (inputs.length === 0 && videoInputs.length === 0) return;
 
         let cancelUpload = null;
         form.addEventListener('submit', async (event) => {
             const pendingInputs = inputs.filter((input) => input.files?.length && !input.disabled);
-            if (pendingInputs.length === 0 || form.dataset.mediaUploadComplete === 'true') return;
+            const pendingVideos = videoInputs.filter((input) => input.files?.length && !input.disabled);
+            if (
+                (pendingInputs.length === 0 && pendingVideos.length === 0)
+                || form.dataset.mediaUploadComplete === 'true'
+            ) return;
 
             event.preventDefault();
             const submitter = event.submitter;
+            if (submitter) submitter.disabled = true;
+            let activeStatus = null;
 
             try {
                 for (const input of pendingInputs) {
@@ -609,6 +700,7 @@ const initializeMediaInputs = () => {
                     const progressValue = wrapper.querySelector('[data-media-progress-value]');
                     const progressStatus = wrapper.querySelector('[data-media-progress-status]');
                     const status = wrapper.querySelector('[data-media-status]');
+                    activeStatus = status;
                     const sourceInput = form.querySelector(`[data-media-source-for="${CSS.escape(input.id)}"]`);
                     const file = input.files[0];
                     const data = new FormData();
@@ -635,16 +727,59 @@ const initializeMediaInputs = () => {
                     progressStatus.textContent = 'Selesai';
                 }
 
+                for (const input of pendingVideos) {
+                    const inputId = input.id;
+                    const sourceSelect = form.querySelector(`[data-media-direct-video-source-for="${CSS.escape(inputId)}"]`);
+                    const assetInput = form.querySelector(`[data-media-direct-video-asset-for="${CSS.escape(inputId)}"]`);
+                    const wrapper = input.closest('.admin-field')?.parentElement;
+                    const progress = wrapper?.querySelector('[data-media-direct-video-progress]');
+                    const progressBar = wrapper?.querySelector('[data-media-direct-video-progress-bar]');
+                    const progressValue = wrapper?.querySelector('[data-media-direct-video-progress-value]');
+                    const progressStatus = wrapper?.querySelector('[data-media-direct-video-progress-status]');
+                    const status = wrapper?.querySelector('[data-media-direct-video-status]');
+                    const file = input.files[0];
+                    activeStatus = status;
+
+                    if (!sourceSelect || !assetInput || !progress || !progressBar || !progressValue || !progressStatus) {
+                        throw new Error('Kontrol unggah video tidak lengkap. Muat ulang halaman dan coba kembali.');
+                    }
+
+                    const data = new FormData();
+                    data.append('file', file, file.name);
+                    data.append('category', input.dataset.mediaCategory || 'general');
+                    data.append('quality', 'original');
+                    data.append('upload_scope', input.id);
+                    progress.hidden = false;
+                    status.textContent = '';
+
+                    const asset = await uploadFile(data, form, (fraction, message) => {
+                        const percent = Math.round(fraction * 100);
+                        progressBar.value = percent;
+                        progressValue.textContent = `${percent}%`;
+                        progressStatus.textContent = message || `Mengunggah ${file.name}`;
+                    }, (cancel) => { cancelUpload = cancel; }, input);
+
+                    if (asset.type !== 'video') {
+                        throw new Error('Pilih file video dengan format MP4, WebM, atau OGG.');
+                    }
+
+                    assetInput.value = String(asset.id);
+                    sourceSelect.value = 'media';
+                    sourceSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.disabled = true;
+                    progress.hidden = true;
+                    status.textContent = `${asset.name} tersimpan. Klik Simpan untuk menerapkan perubahan.`;
+                }
+
                 form.dataset.mediaUploadComplete = 'true';
-                if (submitter && !submitter.disabled) {
+                if (submitter) {
+                    submitter.disabled = false;
                     form.requestSubmit(submitter);
                 } else {
                     form.requestSubmit();
                 }
             } catch (error) {
-                const activeWrapper = pendingInputs.find((input) => !input.disabled)?.closest('[data-media-field]');
-                const status = activeWrapper?.querySelector('[data-media-status]');
-                if (status) status.textContent = error.message;
+                if (activeStatus) activeStatus.textContent = error.message || 'Unggahan gagal. Silakan coba kembali.';
                 if (submitter) submitter.disabled = false;
             } finally {
                 cancelUpload = null;
@@ -652,6 +787,9 @@ const initializeMediaInputs = () => {
         });
 
         form.querySelectorAll('[data-media-cancel]').forEach((button) => {
+            button.addEventListener('click', () => cancelUpload?.());
+        });
+        form.querySelectorAll('[data-media-direct-video-cancel]').forEach((button) => {
             button.addEventListener('click', () => cancelUpload?.());
         });
     });
@@ -701,6 +839,9 @@ const initializeMediaInputs = () => {
 const initializeMedia = () => {
     initializeMediaEditor();
     initializeMediaInputs();
+    initializeNewsMediaUploads();
+    initializeDirectVideoSources();
+    initializeMediaUploads();
 };
 
 if (document.readyState === 'loading') {

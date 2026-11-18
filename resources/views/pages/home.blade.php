@@ -207,7 +207,11 @@
                         <a class="educator-lanyard-cta" href="{{ route('teachers') }}">Lihat semua tenaga pendidik <span aria-hidden="true">→</span></a>
                     </div>
                     <figure class="educator-lanyard-hero-image">
-                        <img src="{{ asset('images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png') }}" alt="Gedung SMK Islamiyah Ciputat" loading="lazy">
+                        @php
+                            $teacherSectionImage = $siteSettings['home.teachers.image']
+                                ?: 'images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png';
+                        @endphp
+                        <img src="{{ $siteConfiguration->imageUrl($teacherSectionImage) }}" alt="Gedung SMK Islamiyah Ciputat" loading="lazy">
                     </figure>
                 </div>
                 <div class="educator-lanyard-grid" aria-label="Galeri tenaga pendidik">
@@ -234,8 +238,8 @@
             <div class="container">
                 <div class="news-section-heading">
                     <span class="news-section-label">INFORMASI SEKOLAH</span>
-                    <h2 id="latest-news-heading">Informasi SMK Islamiyah Ciputat</h2>
-                    <p>Ikuti informasi terbaru, kegiatan, pengumuman, dan berbagai aktivitas menarik dari SMK Islamiyah Ciputat.</p>
+                    <h2 id="latest-news-heading">{{ $siteSettings['home.news.heading'] }}</h2>
+                    <p>{{ $siteSettings['home.news.description'] }}</p>
                 </div>
                 @if ($carouselNews->isNotEmpty() || $belowCarouselNews->isNotEmpty() || $sidebarNews->isNotEmpty() || $latestActivity)
                     <div class="news-grid">
@@ -244,11 +248,20 @@
                                 <div class="news-carousel">
                                     <div class="news-latest-list" data-news-track tabindex="0" aria-label="Daftar berita terbaru">
                                         @foreach ($carouselNews as $article)
-                                            <article class="news-item news-carousel-item" data-news-carousel-item @if (data_get($article->metadata, 'homepage_group') === 'featured') data-news-featured-slide @endif>
-                                                @if ($article->image_path)
-                                                    <img class="news-item-image" src="{{ $siteConfiguration->imageUrl($article->image_path) }}" alt="Foto {{ $article->title }}" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
+                                            @php
+                                                $mediaPreview = $article->media_items[0] ?? null;
+                                            @endphp
+                                            <article class="news-item news-carousel-item" data-news-carousel-item {{ $loop->first ? 'data-news-featured-slide' : '' }}>
+                                                @if ($mediaPreview && $mediaPreview['type'] === 'image')
+                                                    <img class="news-item-image" src="{{ $siteConfiguration->imageUrl($mediaPreview['src']) }}" alt="Foto {{ $article->title }}" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
+                                                @elseif ($mediaPreview && $mediaPreview['type'] === 'video' && $mediaPreview['poster'])
+                                                    <img class="news-item-image" src="{{ $siteConfiguration->imageUrl($mediaPreview['poster']) }}" alt="Pratinjau video {{ $article->title }}" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
                                                 @else
-                                                    <div class="news-item-placeholder" aria-hidden="true"></div>
+                                                    <div class="news-item-placeholder" aria-hidden="true">
+                                                        @if ($mediaPreview && $mediaPreview['type'] === 'video')
+                                                            <span>▶</span>
+                                                        @endif
+                                                    </div>
                                                 @endif
                                                 <div class="news-item-content">
                                                     <div class="news-item-meta">
@@ -275,6 +288,9 @@
                                             <button type="button" class="news-carousel-button" data-news-scroll="right" aria-label="Geser berita ke kanan"><span aria-hidden="true">→</span></button>
                                         </div>
                                     </div>
+                                    @if ($showAllNewsLink)
+                                        <a class="news-more-link" href="{{ route('news.index') }}">Lihat semua berita <span aria-hidden="true">→</span></a>
+                                    @endif
                                 </div>
                             @endif
                             @if ($belowCarouselNews->isNotEmpty())

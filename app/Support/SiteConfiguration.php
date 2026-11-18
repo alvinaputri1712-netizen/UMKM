@@ -28,6 +28,11 @@ class SiteConfiguration
         return $this->cachedValues = $values;
     }
 
+    public function forgetCache(): void
+    {
+        $this->cachedValues = null;
+    }
+
     public function imageUrl(?string $path): ?string
     {
         if (blank($path)) {

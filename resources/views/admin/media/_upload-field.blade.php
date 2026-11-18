@@ -2,7 +2,6 @@
     class="{{ ($embedded ?? false) ? 'admin-managed-media-field' : 'admin-field admin-field-full admin-managed-media-field' }}"
     data-media-field
     data-media-category="{{ $category }}"
-    data-media-upload-url="{{ route('admin.media.store') }}"
     data-media-upload-base="{{ route('admin.media.uploads.store') }}"
 >
     @unless ($embedded ?? false)

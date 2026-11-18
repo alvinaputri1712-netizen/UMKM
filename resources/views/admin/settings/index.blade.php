@@ -19,7 +19,7 @@
             @endforeach
         </nav>
 
-        <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data" class="admin-card admin-form admin-settings-form">
+        <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data" class="admin-card admin-form admin-settings-form" data-media-upload-base="{{ route('admin.media.uploads.store') }}">
             @csrf
             @method('PUT')
             <input type="hidden" name="section" value="{{ $section }}">
@@ -28,13 +28,27 @@
                 <div><h2>{{ $sections[$section] }}</h2><p>Isi bagian yang ingin diubah, lalu simpan.</p></div>
             </div>
 
+            @php
+                $aboutFieldFallbacks = [
+                    'about.profile_heading' => $values['identity.school_name'] ?? '',
+                    'about.profile_paragraph_1' => $values['home.about.paragraph_1'] ?? '',
+                    'about.profile_paragraph_2' => $values['home.about.paragraph_2'] ?? '',
+                    'about.profile_image_alt' => $values['home.about.image_alt'] ?? 'Bangunan sekolah SMK Islamiyah Ciputat',
+                    'about.location_address' => filled($values['identity.address'] ?? null)
+                        ? $values['identity.address']
+                        : ($values['identity.location'] ?? ''),
+                ];
+            @endphp
+
             <div class="admin-form-grid">
                 @foreach ($fields as $key => $field)
                     @php
                         $fieldName = \Illuminate\Support\Str::after($key, $section.'.');
                         $inputName = 'settings['.$section.']['.str_replace('.', '][', $fieldName).']';
                         $settingPath = 'settings.'.$key;
-                        $value = old('settings.'.$key, $values[$key] ?? null);
+                        $value = old('settings.'.$key, filled($values[$key] ?? null)
+                            ? $values[$key]
+                            : ($aboutFieldFallbacks[$key] ?? ($values[$key] ?? null)));
                     @endphp
                     <div class="admin-field {{ in_array($field['type'], ['textarea', 'image', 'video_source'], true) ? 'admin-field-full' : '' }}">
                         @if ($field['type'] === 'checkbox')
@@ -48,37 +62,69 @@
                                 $videoValue = is_string($value) ? $value : '';
                                 $currentAsset = $videoAssets->first(fn (\App\Models\MediaAsset $asset): bool => $asset->publicPath() === $videoValue);
                                 $youtubeId = \App\Support\VideoSource::youtubeId($videoValue);
-                                $source = old($settingPath.'.source', $currentAsset ? 'media' : ($videoValue === '' ? 'none' : 'url'));
+                                $source = old($settingPath.'.source', $currentAsset
+                                    ? 'media'
+                                    : ($videoValue === '' ? 'none' : (\App\Support\VideoSource::supportsUrl($videoValue) ? 'url' : 'existing')));
                                 $videoUrl = old($settingPath.'.url', $youtubeId && ! str_starts_with($videoValue, 'http')
                                     ? 'https://youtu.be/'.$youtubeId
-                                    : ($currentAsset ? '' : $videoValue));
+                                    : ($source === 'url' ? $videoValue : ''));
                                 $assetId = old($settingPath.'.asset_id', $currentAsset?->id);
                             @endphp
                             <label for="setting-{{ str_replace('.', '-', $key) }}-source">{{ $field['label'] }}</label>
-                            <select id="setting-{{ str_replace('.', '-', $key) }}-source" name="{{ $inputName }}[source]">
+                            <select
+                                id="setting-{{ str_replace('.', '-', $key) }}-source"
+                                name="{{ $inputName }}[source]"
+                                data-media-direct-video-source
+                                data-media-direct-video-source-for="setting-{{ str_replace('.', '-', $key) }}-file"
+                                data-media-direct-video-has-existing="{{ $source === 'media' ? 'true' : 'false' }}"
+                            >
                                 <option value="none" @selected($source === 'none')>Tidak ditampilkan</option>
-                                <option value="media" @selected($source === 'media')>Pilih dari Media Manager</option>
+                                <option value="media" @selected($source === 'media') {{ $source !== 'media' ? 'hidden' : '' }}>Pertahankan video tersimpan</option>
+                                @if ($source === 'existing')
+                                    <option value="existing" selected>Pertahankan video saat ini</option>
+                                @endif
+                                <option value="upload" @selected($source === 'upload')>Pilih video dari perangkat</option>
                                 <option value="url" @selected($source === 'url')>Gunakan URL video</option>
                             </select>
-                            <label for="setting-{{ str_replace('.', '-', $key) }}-url">URL YouTube atau tautan langsung MP4/WebM/OGG</label>
-                            <input
-                                id="setting-{{ str_replace('.', '-', $key) }}-url"
-                                name="{{ $inputName }}[url]"
-                                type="url"
-                                value="{{ $videoUrl }}"
-                                placeholder="https://youtu.be/... atau https://.../video.mp4"
-                            >
-                            <label for="setting-{{ str_replace('.', '-', $key) }}-asset">Video tersimpan</label>
-                            <select id="setting-{{ str_replace('.', '-', $key) }}-asset" name="{{ $inputName }}[asset_id]">
-                                <option value="">Pilih video dari Media Manager</option>
-                                @foreach ($videoAssets as $asset)
-                                    <option value="{{ $asset->id }}" @selected((string) $assetId === (string) $asset->id)>{{ $asset->filename }}</option>
-                                @endforeach
-                            </select>
-                            <small>
-                                <a href="{{ route('admin.media.index', ['type' => 'video']) }}">Unggah atau kelola video di Media Manager</a>.
-                                Satu slot hanya memakai sumber yang dipilih.
-                            </small>
+                            <input type="hidden" name="{{ $inputName }}[asset_id]" value="{{ $assetId }}" data-media-direct-video-asset data-media-direct-video-asset-for="setting-{{ str_replace('.', '-', $key) }}-file" {{ $source !== 'media' ? 'disabled' : '' }}>
+                            <div data-media-direct-video-url-control {{ $source !== 'url' ? 'hidden' : '' }}>
+                                <label for="setting-{{ str_replace('.', '-', $key) }}-url">URL YouTube atau tautan langsung MP4/WebM/OGG</label>
+                                <input
+                                    id="setting-{{ str_replace('.', '-', $key) }}-url"
+                                    name="{{ $inputName }}[url]"
+                                    type="url"
+                                    value="{{ $videoUrl }}"
+                                    placeholder="https://youtu.be/... atau https://.../video.mp4"
+                                    {{ $source !== 'url' ? 'disabled' : '' }}
+                                    {{ $source === 'url' ? 'required' : '' }}
+                                >
+                            </div>
+                            <div class="admin-field admin-field-full" data-media-direct-video-file-control {{ $source !== 'upload' ? 'hidden' : '' }}>
+                                <label for="setting-{{ str_replace('.', '-', $key) }}-file">Pilih video dari perangkat</label>
+                                <input
+                                    id="setting-{{ str_replace('.', '-', $key) }}-file"
+                                    name="video_uploads[{{ $section }}][{{ $fieldName }}]"
+                                    type="file"
+                                    accept="video/mp4,video/webm,video/ogg,.mp4,.m4v,.webm,.ogv,.ogg"
+                                    data-media-direct-video
+                                    data-media-file
+                                    data-media-category="general"
+                                    {{ $source !== 'upload' ? 'disabled' : '' }}
+                                    {{ $source === 'upload' ? 'required' : '' }}
+                                >
+                                <div class="admin-media-upload-preview" data-media-preview hidden>
+                                    <video controls preload="metadata" data-media-video-preview hidden></video>
+                                </div>
+                                <small data-media-direct-video-file-details data-media-file-details></small>
+                                @error('video_uploads.'.$section.'.'.$fieldName)<small class="admin-field-error">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="admin-media-status" role="status" data-media-direct-video-status></div>
+                            <div class="admin-media-progress" data-media-direct-video-progress hidden>
+                                <div><span data-media-direct-video-progress-status>Menyiapkan unggahan...</span><strong data-media-direct-video-progress-value>0%</strong></div>
+                                <progress max="100" value="0" data-media-direct-video-progress-bar></progress>
+                                <button type="button" class="admin-button admin-button-secondary" data-media-direct-video-cancel>Batalkan</button>
+                            </div>
+                            <small>Sumber video dapat dipilih dari perangkat atau menggunakan URL. Video lama tetap tersimpan sampai diganti.</small>
                         @else
                             <label for="setting-{{ str_replace('.', '-', $key) }}">{{ $field['label'] }}</label>
                             @if ($field['type'] === 'textarea')
@@ -107,7 +153,7 @@
                                     </label>
                                 @endif
                             @else
-                                <input id="setting-{{ str_replace('.', '-', $key) }}" name="{{ $inputName }}" type="{{ in_array($field['type'], ['link', 'youtube'], true) ? 'text' : $field['type'] }}" value="{{ $value }}" @if ($field['type'] === 'link') inputmode="url" placeholder="/path atau https://..." @elseif ($field['type'] === 'youtube') placeholder="ID video YouTube 11 karakter" @endif>
+                                <input id="setting-{{ str_replace('.', '-', $key) }}" name="{{ $inputName }}" type="{{ in_array($field['type'], ['link', 'youtube', 'coordinates'], true) ? 'text' : $field['type'] }}" value="{{ $value }}" @if ($field['type'] === 'link') inputmode="url" placeholder="/path atau https://..." @elseif ($field['type'] === 'youtube') placeholder="ID video YouTube 11 karakter" @elseif ($field['type'] === 'coordinates') inputmode="decimal" placeholder="Contoh: -6.2, 106.7" @endif>
                             @endif
                         @endif
                         @error('settings.'.$key)<small class="admin-field-error">{{ $message }}</small>@enderror
@@ -120,7 +166,9 @@
             </div>
 
             <div class="admin-form-actions">
-                <button type="submit" class="admin-button admin-button-primary">Simpan pengaturan</button>
+                <button type="submit" class="admin-button admin-button-primary" data-settings-submit>
+                    <span data-settings-submit-label>Simpan pengaturan</span>
+                </button>
             </div>
         </form>
     </div>

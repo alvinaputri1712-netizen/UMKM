@@ -8,6 +8,7 @@ use App\Support\MediaUploadService;
 use App\Support\SiteConfiguration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 
 class MediaUploadController extends Controller
@@ -104,6 +105,23 @@ class MediaUploadController extends Controller
             'replacement_cleanup_pending' => $asset->replacement_cleanup_pending ?? false,
             'poster_url' => route('admin.media.poster', $asset),
         ], 201);
+    }
+
+    public function poster(Request $request, MediaAsset $media, MediaLibrary $library): JsonResponse
+    {
+        abort_unless($media->media_type === 'video', 404);
+        $validated = $request->validate([
+            'poster' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'extensions:jpg,jpeg,png,webp,avif', 'max:8192'],
+        ]);
+        $poster = $request->file('poster');
+        abort_unless($poster instanceof UploadedFile, 422);
+
+        $library->attachPoster($media, $poster);
+        $media->refresh();
+
+        return response()->json([
+            'poster' => app(SiteConfiguration::class)->imageUrl($media->poster_path),
+        ]);
     }
 
     public function destroy(Request $request, string $uploadId, MediaUploadService $uploads): JsonResponse

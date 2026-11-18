@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\ContentRecord;
 use App\Models\MediaAsset;
+use App\Models\NewsArticle;
 use App\Models\SiteSetting;
 use App\Models\Teacher;
 use Illuminate\Http\UploadedFile;
@@ -96,8 +97,28 @@ class PublicImageStorage
             }
         }
 
+        $newsMediaReferencesPath = NewsArticle::query()
+            ->whereNotNull('metadata')
+            ->get(['metadata'])
+            ->contains(function (NewsArticle $article) use ($path): bool {
+                $media = data_get($article->metadata, 'media', []);
+                $images = data_get($article->metadata, 'images', []);
+
+                foreach (is_array($media) ? $media : [] as $item) {
+                    if (
+                        is_array($item)
+                        && in_array($path, [$item['path'] ?? null, $item['poster_path'] ?? null], true)
+                    ) {
+                        return true;
+                    }
+                }
+
+                return is_array($images) && in_array($path, $images, true);
+            });
+
         if (
             Teacher::query()->where('image_path', $path)->exists()
+            || $newsMediaReferencesPath
             || SiteSetting::query()->where('value', json_encode($path, JSON_THROW_ON_ERROR))->exists()
         ) {
             return false;

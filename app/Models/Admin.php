@@ -39,8 +39,8 @@ class Admin extends Authenticatable
     {
         return match ($this->role) {
             'superadmin' => 'Akses penuh ke konten, pengaturan, media, dan manajemen akun. Hanya ada satu Superadmin; gunakan Manajemen Admin untuk membuat akun Admin atau Editor.',
-            'admin' => 'Mengelola konten, pengaturan website, dan Media Manager. Manajemen akun hanya tersedia untuk Superadmin.',
-            'editor' => 'Mengelola program, tenaga kependidikan, sambutan, berita, lowongan, dan galeri. Editor dapat mengunggah foto untuk konten, tetapi tidak dapat mengakses pengaturan, Media Manager, atau akun admin.',
+            'admin' => 'Mengelola konten dan pengaturan website. Manajemen akun hanya tersedia untuk Superadmin.',
+            'editor' => 'Mengelola program, tenaga kependidikan, sambutan, berita, lowongan, dan galeri. Editor dapat mengunggah media untuk konten, tetapi tidak dapat mengakses pengaturan atau akun admin.',
             default => 'Akses panel administrator.',
         };
     }

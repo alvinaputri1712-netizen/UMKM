@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ContentActivity;
 use App\Models\ContentRecord;
+use App\Models\MediaAsset;
 use App\Models\NewsArticle;
 use App\Models\PrincipalWelcome;
 use App\Models\Program;
+use App\Support\MediaLibrary;
 use App\Support\PublicImageStorage;
+use App\Support\VideoSource;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,11 +39,18 @@ class ContentEntryController extends Controller
                 });
             });
 
-        $entries = (clone $query)
-            ->orderBy('sort_order')
-            ->latest('id')
-            ->paginate(10)
-            ->withQueryString();
+        $entriesQuery = clone $query;
+        if ($typeConfig['type'] === 'news') {
+            $entriesQuery
+                ->orderByDesc('published_at')
+                ->orderByDesc('id');
+        } else {
+            $entriesQuery
+                ->orderBy('sort_order')
+                ->latest('id');
+        }
+
+        $entries = $entriesQuery->paginate(10)->withQueryString();
 
         $totalCount = (clone $query)->count();
         $activeMainNewsId = null;
@@ -63,15 +73,25 @@ class ContentEntryController extends Controller
         $defaultStatus = in_array($typeConfig['type'], ['teacher', 'program'], true) ? 'published' : 'draft';
         $model = ContentRecord::modelForType($typeConfig['type']);
 
-        return view('admin.content.form', [
+        $viewData = [
             'entry' => new $model(['status' => $defaultStatus]),
             'type' => $type,
             'typeConfig' => $typeConfig,
-        ]);
+        ];
+
+        if ($typeConfig['type'] === 'news') {
+            $viewData = [...$viewData, ...$this->newsMediaFormData()];
+        }
+
+        return view('admin.content.form', $viewData);
     }
 
-    public function store(Request $request, string $type, PublicImageStorage $images): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        string $type,
+        PublicImageStorage $images,
+        MediaLibrary $mediaLibrary,
+    ): RedirectResponse {
         $typeConfig = $this->typeConfig($type);
 
         if ($typeConfig['type'] === 'program') {
@@ -100,7 +120,14 @@ class ContentEntryController extends Controller
             $this->rules($request, $typeConfig),
             $this->validationMessages($typeConfig),
         );
+        if ($typeConfig['type'] === 'news') {
+            $validated = $this->storeDirectNewsMedia($validated, $mediaLibrary);
+        }
         $attributes = $this->attributes($validated, $typeConfig);
+
+        if ($typeConfig['type'] === 'news') {
+            $attributes = $this->applyNewsMedia($attributes, $validated);
+        }
 
         if ($typeConfig['type'] === 'principal_welcome') {
             $highestSortOrder = PrincipalWelcome::query()->max('sort_order');
@@ -108,7 +135,7 @@ class ContentEntryController extends Controller
             $attributes['published_at'] = $attributes['status'] === 'published' ? now() : null;
         }
 
-        if ($request->hasFile('image')) {
+        if ($typeConfig['type'] !== 'news' && $request->hasFile('image')) {
             $attributes['image_path'] = $images->store(
                 $request->file('image'),
                 'cms/'.$typeConfig['type'],
@@ -116,7 +143,7 @@ class ContentEntryController extends Controller
                 $request->file('source_image'),
                 Auth::guard('admin')->id(),
             );
-        } elseif ($request->filled('media_asset_id')) {
+        } elseif ($typeConfig['type'] !== 'news' && $request->filled('media_asset_id')) {
             $attributes['image_path'] = $images->storeFromAsset($request->integer('media_asset_id'));
         }
 
@@ -143,7 +170,12 @@ class ContentEntryController extends Controller
         $typeConfig = $this->typeConfig($type);
         $entry = $this->resolveEntry($typeConfig, $entry);
 
-        return view('admin.content.form', compact('entry', 'type', 'typeConfig'));
+        $viewData = compact('entry', 'type', 'typeConfig');
+        if ($typeConfig['type'] === 'news') {
+            $viewData = [...$viewData, ...$this->newsMediaFormData($entry)];
+        }
+
+        return view('admin.content.form', $viewData);
     }
 
     public function update(
@@ -151,6 +183,7 @@ class ContentEntryController extends Controller
         string $type,
         string $entry,
         PublicImageStorage $images,
+        MediaLibrary $mediaLibrary,
     ): RedirectResponse {
         $typeConfig = $this->typeConfig($type);
         $entry = $this->resolveEntry($typeConfig, $entry);
@@ -184,6 +217,9 @@ class ContentEntryController extends Controller
             $this->rules($request, $typeConfig, $entry),
             $this->validationMessages($typeConfig),
         );
+        if ($typeConfig['type'] === 'news') {
+            $validated = $this->storeDirectNewsMedia($validated, $mediaLibrary);
+        }
         $attributes = $this->attributes($validated, $typeConfig);
 
         if ($typeConfig['type'] === 'program') {
@@ -202,11 +238,12 @@ class ContentEntryController extends Controller
                 $attributes['metadata'] ?? [],
             );
             $attributes['featured'] = $entry->featured;
+            $attributes = $this->applyNewsMedia($attributes, $validated, $entry);
         }
 
         $oldImage = $entry->image_path;
 
-        if ($request->hasFile('image')) {
+        if ($typeConfig['type'] !== 'news' && $request->hasFile('image')) {
             $attributes['image_path'] = $images->store(
                 $request->file('image'),
                 'cms/'.$typeConfig['type'],
@@ -214,7 +251,7 @@ class ContentEntryController extends Controller
                 $request->file('source_image'),
                 Auth::guard('admin')->id(),
             );
-        } elseif ($request->filled('media_asset_id')) {
+        } elseif ($typeConfig['type'] !== 'news' && $request->filled('media_asset_id')) {
             $attributes['image_path'] = $images->storeFromAsset($request->integer('media_asset_id'));
         }
 
@@ -404,6 +441,106 @@ class ContentEntryController extends Controller
             $rules['metadata.'.$name] = $fieldRule;
         }
 
+        if ($typeValue === 'news') {
+            unset(
+                $rules['image'],
+                $rules['source_image'],
+                $rules['media_asset_id'],
+                $rules['sort_order'],
+                $rules['meta_title'],
+                $rules['meta_description'],
+            );
+
+            $rules['news_media'] = ['nullable', 'array', 'max:20'];
+            $rules['news_media.*'] = ['required', 'array'];
+
+            $mediaRows = $request->input('news_media', []);
+            $mediaRows = is_array($mediaRows) ? $mediaRows : [];
+            $existingRows = collect($mediaRows)
+                ->filter(fn (mixed $media): bool => is_array($media) && ($media['source'] ?? null) === 'existing')
+                ->count();
+
+            foreach ($mediaRows as $index => $media) {
+                if (! is_array($media)) {
+                    continue;
+                }
+
+                $mediaType = is_string($media['type'] ?? null) ? $media['type'] : '';
+                $source = is_string($media['source'] ?? null) ? $media['source'] : '';
+                $prefix = 'news_media.'.$index;
+                $rules[$prefix.'.type'] = ['required', Rule::in(['image', 'video'])];
+                $rules[$prefix.'.source'] = ['required', Rule::in(['url', 'asset', 'device', 'existing'])];
+
+                if ($source === 'url') {
+                    $rules[$prefix.'.file'] = ['prohibited'];
+                    $rules[$prefix.'.url'] = [
+                        'required',
+                        'string',
+                        'max:2048',
+                        function (string $attribute, mixed $value, \Closure $fail) use ($mediaType): void {
+                            $parts = is_string($value) ? parse_url($value) : false;
+                            $hasHttpScheme = is_array($parts)
+                                && in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true)
+                                && filled($parts['host'] ?? null);
+
+                            if (! $hasHttpScheme) {
+                                $fail('URL media harus menggunakan alamat HTTP atau HTTPS yang valid.');
+
+                                return;
+                            }
+
+                            if ($mediaType === 'video' && ! VideoSource::supportsUrl($value)) {
+                                $fail('URL video harus berupa tautan YouTube atau berkas video yang didukung.');
+                            }
+                        },
+                    ];
+                    $rules[$prefix.'.asset_id'] = ['prohibited'];
+                } elseif ($source === 'asset') {
+                    $rules[$prefix.'.file'] = ['prohibited'];
+                    $rules[$prefix.'.url'] = ['prohibited'];
+                    $rules[$prefix.'.asset_id'] = [
+                        'required',
+                        'integer',
+                        Rule::exists('media_assets', 'id')->where(
+                            fn ($query) => $query->where('media_type', $mediaType),
+                        ),
+                    ];
+                } elseif ($source === 'device') {
+                    $rules[$prefix.'.url'] = ['prohibited'];
+                    $rules[$prefix.'.asset_id'] = ['prohibited'];
+                    $rules[$prefix.'.file'] = $mediaType === 'image'
+                        ? [
+                            'required',
+                            'image',
+                            'mimes:jpg,jpeg,png,webp,avif',
+                            'extensions:jpg,jpeg,png,webp,avif',
+                            'max:'.(config('media.max_upload_mb') * 1024),
+                        ]
+                        : [
+                            'required',
+                            'file',
+                            'mimetypes:video/mp4,video/webm,video/ogg',
+                            'extensions:mp4,m4v,webm,ogv,ogg',
+                            'max:'.(config('media.max_upload_mb') * 1024),
+                        ];
+                } elseif ($source === 'existing') {
+                    $rules[$prefix.'.url'] = ['prohibited'];
+                    $rules[$prefix.'.asset_id'] = ['prohibited'];
+                    $rules[$prefix.'.file'] = ['prohibited'];
+                    $rules[$prefix.'.source'][] = function (string $attribute, mixed $value, \Closure $fail) use ($entry, $mediaType, $existingRows): void {
+                        if (
+                            ! $entry instanceof NewsArticle
+                            || ! filled($entry->image_path)
+                            || $mediaType !== 'image'
+                            || $existingRows !== 1
+                        ) {
+                            $fail('Media lama yang dipertahankan tidak valid.');
+                        }
+                    };
+                }
+            }
+        }
+
         return $rules;
     }
 
@@ -443,9 +580,20 @@ class ContentEntryController extends Controller
             ]),
             'route_key' => $routeKey,
             'featured' => (bool) ($validated['featured'] ?? false),
-            'sort_order' => (int) ($validated['sort_order'] ?? 0),
             'metadata' => $metadata,
         ];
+
+        if ($typeConfig['type'] !== 'news') {
+            $attributes['sort_order'] = (int) ($validated['sort_order'] ?? 0);
+        }
+
+        if (
+            $typeConfig['type'] === 'news'
+            && ($attributes['status'] ?? null) === 'published'
+            && blank($attributes['published_at'] ?? null)
+        ) {
+            $attributes['published_at'] = now();
+        }
 
         if ($typeConfig['type'] === 'teacher') {
             $attributes['category'] = $attributes['category'] ?: 'Tenaga Pendidik';
@@ -456,6 +604,143 @@ class ContentEntryController extends Controller
         }
 
         return $attributes;
+    }
+
+    /**
+     * @return array{newsMedia: array<int, array<string, mixed>>}
+     */
+    private function newsMediaFormData(?ContentRecord $entry = null): array
+    {
+        $newsMedia = [];
+
+        if ($entry instanceof NewsArticle) {
+            $newsMedia = collect(data_get($entry->metadata, 'media', []))
+                ->filter(fn (mixed $media): bool => is_array($media))
+                ->values()
+                ->all();
+
+            if (
+                filled($entry->image_path)
+                && ! collect($newsMedia)->contains(fn (array $media): bool => in_array(
+                    $entry->image_path,
+                    [$media['path'] ?? null, $media['url'] ?? null],
+                    true,
+                ))
+            ) {
+                array_unshift($newsMedia, [
+                    'type' => 'image',
+                    'source' => 'existing',
+                    'path' => $entry->image_path,
+                ]);
+            }
+        }
+
+        return ['newsMedia' => $newsMedia];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function applyNewsMedia(array $attributes, array $validated, ?ContentRecord $entry = null): array
+    {
+        $media = $this->normalizeNewsMedia($validated['news_media'] ?? [], $entry);
+        $attributes['metadata'] = [
+            ...($attributes['metadata'] ?? []),
+            'media' => $media,
+        ];
+        $cover = collect($media)->first(fn (array $item): bool => $item['type'] === 'image');
+        $attributes['image_path'] = $cover === null
+            ? null
+            : ($cover['source'] === 'url' ? $cover['url'] : $cover['path']);
+
+        return $attributes;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function storeDirectNewsMedia(array $validated, MediaLibrary $library): array
+    {
+        foreach ($validated['news_media'] ?? [] as $index => $media) {
+            if (($media['source'] ?? null) !== 'device') {
+                continue;
+            }
+
+            $file = $media['file'];
+            $asset = $media['type'] === 'image'
+                ? $library->storeImage(
+                    $file,
+                    'news',
+                    'optimized',
+                    adminId: Auth::guard('admin')->id(),
+                )
+                : $library->storeVideo(
+                    $file,
+                    'news',
+                    'original',
+                    Auth::guard('admin')->id(),
+                );
+
+            $validated['news_media'][$index]['source'] = 'asset';
+            $validated['news_media'][$index]['asset_id'] = $asset->id;
+            unset($validated['news_media'][$index]['file']);
+        }
+
+        return $validated;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $mediaRows
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeNewsMedia(array $mediaRows, ?ContentRecord $entry): array
+    {
+        $assetIds = collect($mediaRows)
+            ->filter(fn (array $media): bool => ($media['source'] ?? null) === 'asset')
+            ->pluck('asset_id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+        $assets = $assetIds->isEmpty()
+            ? collect()
+            : MediaAsset::query()->whereIn('id', $assetIds)->get()->keyBy('id');
+
+        return collect($mediaRows)
+            ->map(function (array $media) use ($assets, $entry): array {
+                $type = $media['type'];
+
+                if ($media['source'] === 'url') {
+                    return [
+                        'type' => $type,
+                        'source' => 'url',
+                        'url' => trim($media['url']),
+                    ];
+                }
+
+                if ($media['source'] === 'asset') {
+                    $asset = $assets->get((int) $media['asset_id']);
+
+                    return [
+                        'type' => $type,
+                        'source' => 'asset',
+                        'asset_id' => $asset->id,
+                        'path' => $asset->publicPath(),
+                        'poster_path' => $asset->poster_path,
+                        'mime_type' => $asset->mime_type,
+                    ];
+                }
+
+                return [
+                    'type' => 'image',
+                    'source' => 'existing',
+                    'path' => $entry instanceof NewsArticle ? $entry->image_path : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function prepareProgramInput(Request $request, ?ContentRecord $entry = null): void
@@ -602,7 +887,7 @@ class ContentEntryController extends Controller
 
         foreach ($query->get() as $article) {
             $metadata = $article->metadata ?? [];
-            $metadata['homepage_group'] = 'auto';
+            $metadata['homepage_group'] = 'latest';
             $article->update(['metadata' => $metadata]);
             $this->recordActivity($article, 'updated');
         }
