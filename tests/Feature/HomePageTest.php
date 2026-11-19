@@ -224,7 +224,7 @@ class HomePageTest extends TestCase
         $response = $this->get(route('home'));
 
         $response->assertOk()
-            ->assertSee('data-news-track', false)
+            ->assertSee('data-news-home-layout', false)
             ->assertSee('Berita Beranda 1')
             ->assertSee('Berita Beranda 2')
             ->assertSee('Berita Beranda 3')
@@ -238,7 +238,9 @@ class HomePageTest extends TestCase
 
         $content = $response->getContent() ?? '';
 
-        $this->assertSame(4, substr_count($content, 'data-news-carousel-item'));
+        $this->assertSame(4, substr_count($content, 'data-news-home-item'));
+        $this->assertSame(1, substr_count($content, 'class="news-featured"'));
+        $this->assertSame(3, substr_count($content, 'class="news-card"'));
         $this->assertSame(0, substr_count($content, 'data-news-below-carousel-item'));
         $this->assertSame(0, substr_count($content, 'data-news-sidebar-item'));
 
@@ -280,7 +282,7 @@ class HomePageTest extends TestCase
             ->assertDontSee('Berita Otomatis 14');
 
         $content = $response->getContent() ?? '';
-        $this->assertSame(4, substr_count($content, 'data-news-carousel-item'));
+        $this->assertSame(4, substr_count($content, 'data-news-home-item'));
         $this->assertSame(0, substr_count($content, 'data-news-below-carousel-item'));
         $this->assertSame(0, substr_count($content, 'data-news-sidebar-item'));
     }
@@ -313,7 +315,7 @@ class HomePageTest extends TestCase
             ->assertSee('Berita Terbaru 4')
             ->assertDontSee('Berita Lampau Tidak di Beranda');
         $content = $response->getContent() ?? '';
-        $this->assertSame(4, substr_count($content, 'data-news-carousel-item'));
+        $this->assertSame(4, substr_count($content, 'data-news-home-item'));
 
         $this->get(route('news.index'))
             ->assertOk()
@@ -336,7 +338,7 @@ class HomePageTest extends TestCase
 
         $response->assertOk();
         $content = $response->getContent() ?? '';
-        $this->assertSame(4, substr_count($content, 'data-news-carousel-item'));
+        $this->assertSame(4, substr_count($content, 'data-news-home-item'));
         $this->assertSame(1, substr_count($content, 'data-news-featured-slide'));
         $response->assertSee('Populer Terbaru 1')
             ->assertSee('Populer Terbaru 2')

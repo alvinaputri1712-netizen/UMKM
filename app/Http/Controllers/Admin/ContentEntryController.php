@@ -18,9 +18,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use RuntimeException;
+use Throwable;
 
 class ContentEntryController extends Controller
 {
@@ -120,42 +123,58 @@ class ContentEntryController extends Controller
             $this->rules($request, $typeConfig),
             $this->validationMessages($typeConfig),
         );
-        if ($typeConfig['type'] === 'news') {
-            $validated = $this->storeDirectNewsMedia($validated, $mediaLibrary);
-        }
-        $attributes = $this->attributes($validated, $typeConfig);
+        $newMediaPaths = [];
+        try {
+            if ($typeConfig['type'] === 'news') {
+                $validated = $this->storeDirectNewsMedia($validated, $mediaLibrary, $newMediaPaths);
+            }
+            $attributes = $this->attributes($validated, $typeConfig);
 
-        if ($typeConfig['type'] === 'news') {
-            $attributes = $this->applyNewsMedia($attributes, $validated);
-        }
+            if ($typeConfig['type'] === 'news') {
+                $attributes = $this->applyNewsMedia($attributes, $validated);
+            }
 
-        if ($typeConfig['type'] === 'principal_welcome') {
-            $highestSortOrder = PrincipalWelcome::query()->max('sort_order');
-            $attributes['sort_order'] = $highestSortOrder === null ? 0 : (int) $highestSortOrder + 1;
-            $attributes['published_at'] = $attributes['status'] === 'published' ? now() : null;
-        }
+            if ($typeConfig['type'] === 'principal_welcome') {
+                $highestSortOrder = PrincipalWelcome::query()->max('sort_order');
+                $attributes['sort_order'] = $highestSortOrder === null ? 0 : (int) $highestSortOrder + 1;
+                $attributes['published_at'] = $attributes['status'] === 'published' ? now() : null;
+            }
 
-        if ($typeConfig['type'] !== 'news' && $request->hasFile('image')) {
-            $attributes['image_path'] = $images->store(
-                $request->file('image'),
-                'cms/'.$typeConfig['type'],
-                $this->mediaCategory($typeConfig['type']),
-                $request->file('source_image'),
-                Auth::guard('admin')->id(),
-            );
-        } elseif ($typeConfig['type'] !== 'news' && $request->filled('media_asset_id')) {
-            $attributes['image_path'] = $images->storeFromAsset($request->integer('media_asset_id'));
-        }
+            if ($typeConfig['type'] !== 'news' && $request->hasFile('image')) {
+                $attributes['image_path'] = $images->store(
+                    $request->file('image'),
+                    'cms/'.$typeConfig['type'],
+                    $this->mediaCategory($typeConfig['type']),
+                    $request->file('source_image'),
+                    Auth::guard('admin')->id(),
+                );
+                $newMediaPaths[] = $attributes['image_path'];
+            } elseif ($typeConfig['type'] !== 'news' && $request->filled('media_asset_id')) {
+                $attributes['image_path'] = $images->storeFromAsset($request->integer('media_asset_id'));
+            }
 
-        $model = ContentRecord::modelForType($typeConfig['type']);
-        if ($this->shouldReplaceMainNews($typeConfig['type'], $attributes)) {
-            $entry = DB::transaction(function () use ($attributes, $model): ContentRecord {
-                $this->moveExistingMainNewsToAutomatic();
+            $model = ContentRecord::modelForType($typeConfig['type']);
+            if ($this->shouldReplaceMainNews($typeConfig['type'], $attributes)) {
+                $entry = DB::transaction(function () use ($attributes, $model): ContentRecord {
+                    $this->moveExistingMainNewsToAutomatic();
+                    $createdEntry = $model::query()->create($attributes);
 
-                return $model::query()->create($attributes);
-            });
-        } else {
-            $entry = $model::query()->create($attributes);
+                    if (! $createdEntry->exists) {
+                        throw new RuntimeException('Konten gagal disimpan.');
+                    }
+
+                    return $createdEntry;
+                });
+            } else {
+                $entry = $model::query()->create($attributes);
+                if (! $entry->exists) {
+                    throw new RuntimeException('Konten gagal disimpan.');
+                }
+            }
+        } catch (Throwable $exception) {
+            $this->cleanupUnattachedMediaPaths($newMediaPaths, $images);
+
+            throw $exception;
         }
 
         $this->recordActivity($entry, 'created');
@@ -217,54 +236,69 @@ class ContentEntryController extends Controller
             $this->rules($request, $typeConfig, $entry),
             $this->validationMessages($typeConfig),
         );
-        if ($typeConfig['type'] === 'news') {
-            $validated = $this->storeDirectNewsMedia($validated, $mediaLibrary);
+        $oldMediaPaths = $typeConfig['type'] === 'news'
+            ? $this->newsMediaPaths($entry)
+            : array_values(array_filter([$entry->image_path]));
+        $newMediaPaths = [];
+
+        try {
+            if ($typeConfig['type'] === 'news') {
+                $validated = $this->storeDirectNewsMedia($validated, $mediaLibrary, $newMediaPaths);
+            }
+            $attributes = $this->attributes($validated, $typeConfig);
+
+            if ($typeConfig['type'] === 'program') {
+                $attributes['metadata'] = array_replace(
+                    $entry->metadata ?? [],
+                    $attributes['metadata'] ?? [],
+                );
+            } elseif ($typeConfig['type'] === 'principal_welcome') {
+                $attributes['published_at'] = $entry->published_at
+                    ?? ($attributes['status'] === 'published' ? now() : null);
+                $attributes['sort_order'] = $entry->sort_order;
+                $attributes['featured'] = $entry->featured;
+            } elseif ($typeConfig['type'] === 'news') {
+                $attributes['metadata'] = array_replace(
+                    $entry->metadata ?? [],
+                    $attributes['metadata'] ?? [],
+                );
+                $attributes['featured'] = $entry->featured;
+                $attributes = $this->applyNewsMedia($attributes, $validated, $entry);
+            }
+
+            if ($typeConfig['type'] !== 'news' && $request->hasFile('image')) {
+                $attributes['image_path'] = $images->store(
+                    $request->file('image'),
+                    'cms/'.$typeConfig['type'],
+                    $this->mediaCategory($typeConfig['type']),
+                    $request->file('source_image'),
+                    Auth::guard('admin')->id(),
+                );
+                $newMediaPaths[] = $attributes['image_path'];
+            } elseif ($typeConfig['type'] !== 'news' && $request->filled('media_asset_id')) {
+                $attributes['image_path'] = $images->storeFromAsset($request->integer('media_asset_id'));
+            }
+
+            if ($this->shouldReplaceMainNews($typeConfig['type'], $attributes)) {
+                DB::transaction(function () use ($attributes, $entry): void {
+                    $this->moveExistingMainNewsToAutomatic($entry->id);
+                    if (! $entry->update($attributes)) {
+                        throw new RuntimeException('Konten gagal diperbarui.');
+                    }
+                });
+            } elseif (! $entry->update($attributes)) {
+                throw new RuntimeException('Konten gagal diperbarui.');
+            }
+        } catch (Throwable $exception) {
+            $this->cleanupUnattachedMediaPaths($newMediaPaths, $images);
+
+            throw $exception;
         }
-        $attributes = $this->attributes($validated, $typeConfig);
 
-        if ($typeConfig['type'] === 'program') {
-            $attributes['metadata'] = array_replace(
-                $entry->metadata ?? [],
-                $attributes['metadata'] ?? [],
-            );
-        } elseif ($typeConfig['type'] === 'principal_welcome') {
-            $attributes['published_at'] = $entry->published_at
-                ?? ($attributes['status'] === 'published' ? now() : null);
-            $attributes['sort_order'] = $entry->sort_order;
-            $attributes['featured'] = $entry->featured;
-        } elseif ($typeConfig['type'] === 'news') {
-            $attributes['metadata'] = array_replace(
-                $entry->metadata ?? [],
-                $attributes['metadata'] ?? [],
-            );
-            $attributes['featured'] = $entry->featured;
-            $attributes = $this->applyNewsMedia($attributes, $validated, $entry);
+        foreach (array_unique($oldMediaPaths) as $oldMediaPath) {
+            $images->deleteIfUnused($oldMediaPath);
         }
 
-        $oldImage = $entry->image_path;
-
-        if ($typeConfig['type'] !== 'news' && $request->hasFile('image')) {
-            $attributes['image_path'] = $images->store(
-                $request->file('image'),
-                'cms/'.$typeConfig['type'],
-                $this->mediaCategory($typeConfig['type']),
-                $request->file('source_image'),
-                Auth::guard('admin')->id(),
-            );
-        } elseif ($typeConfig['type'] !== 'news' && $request->filled('media_asset_id')) {
-            $attributes['image_path'] = $images->storeFromAsset($request->integer('media_asset_id'));
-        }
-
-        if ($this->shouldReplaceMainNews($typeConfig['type'], $attributes)) {
-            DB::transaction(function () use ($attributes, $entry): void {
-                $this->moveExistingMainNewsToAutomatic($entry->id);
-                $entry->update($attributes);
-            });
-        } else {
-            $entry->update($attributes);
-        }
-
-        $images->deleteIfUnused($oldImage);
         $this->recordActivity($entry, 'updated');
 
         return redirect()
@@ -662,7 +696,7 @@ class ContentEntryController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function storeDirectNewsMedia(array $validated, MediaLibrary $library): array
+    private function storeDirectNewsMedia(array $validated, MediaLibrary $library, array &$createdMediaPaths): array
     {
         foreach ($validated['news_media'] ?? [] as $index => $media) {
             if (($media['source'] ?? null) !== 'device') {
@@ -683,6 +717,7 @@ class ContentEntryController extends Controller
                     'original',
                     Auth::guard('admin')->id(),
                 );
+            $createdMediaPaths[] = $asset->publicPath();
 
             $validated['news_media'][$index]['source'] = 'asset';
             $validated['news_media'][$index]['asset_id'] = $asset->id;
@@ -946,7 +981,11 @@ class ContentEntryController extends Controller
      */
     private function deleteEntries(Builder $query, array $typeConfig, PublicImageStorage $images): int
     {
-        $entries = $query->get(['id', 'title', 'image_path']);
+        $columns = ['id', 'title', 'image_path'];
+        if ($typeConfig['type'] === 'news') {
+            $columns[] = 'metadata';
+        }
+        $entries = $query->get($columns);
         if ($entries->isEmpty()) {
             return 0;
         }
@@ -971,11 +1010,75 @@ class ContentEntryController extends Controller
             }
         });
 
-        foreach ($entries->pluck('image_path')->filter()->unique() as $path) {
+        $mediaPaths = $entries
+            ->flatMap(fn (ContentRecord $entry): array => $typeConfig['type'] === 'news'
+                ? $this->newsMediaPaths($entry)
+                : array_values(array_filter([$entry->image_path])))
+            ->filter()
+            ->unique();
+
+        foreach ($mediaPaths as $path) {
             $images->deleteIfUnused($path);
         }
 
         return $entries->count();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function newsMediaPaths(ContentRecord $entry): array
+    {
+        if (! $entry instanceof NewsArticle) {
+            return array_values(array_filter([$entry->image_path]));
+        }
+
+        $paths = collect([$entry->image_path]);
+        $mediaItems = data_get($entry->metadata, 'media', []);
+
+        foreach (is_array($mediaItems) ? $mediaItems : [] as $media) {
+            if (! is_array($media)) {
+                continue;
+            }
+
+            $paths->push($media['path'] ?? null, $media['poster_path'] ?? null);
+        }
+
+        $legacyImages = data_get($entry->metadata, 'images', []);
+        foreach (is_array($legacyImages) ? $legacyImages : [] as $image) {
+            $paths->push(is_string($image) ? $image : (is_array($image) ? ($image['path'] ?? null) : null));
+        }
+
+        return $paths
+            ->filter(fn (mixed $path): bool => is_string($path) && filled($path))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $paths
+     */
+    private function cleanupUnattachedMediaPaths(array $paths, PublicImageStorage $images): void
+    {
+        foreach (array_unique($paths) as $path) {
+            try {
+                if (! $images->canDelete($path)) {
+                    Log::warning('A newly uploaded media file remained after content persistence failed because it is still referenced.', [
+                        'path' => $path,
+                    ]);
+
+                    continue;
+                }
+
+                $images->deleteIfUnused($path);
+            } catch (Throwable $exception) {
+                Log::warning('A newly uploaded media file could not be cleaned up after content persistence failed.', [
+                    'path' => $path,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 
     private function recordActivity(ContentRecord $entry, string $action): void

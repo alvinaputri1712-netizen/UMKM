@@ -241,166 +241,164 @@
                     <h2 id="latest-news-heading">{{ $siteSettings['home.news.heading'] }}</h2>
                     <p>{{ $siteSettings['home.news.description'] }}</p>
                 </div>
-                @if ($carouselNews->isNotEmpty() || $belowCarouselNews->isNotEmpty() || $sidebarNews->isNotEmpty() || $latestActivity)
-                    <div class="news-grid">
-                        <section class="news-latest" aria-labelledby="latest-news-heading">
-                            @if ($carouselNews->isNotEmpty())
-                                <div class="news-carousel">
-                                    <div class="news-latest-list" data-news-track tabindex="0" aria-label="Daftar berita terbaru">
-                                        @foreach ($carouselNews as $article)
-                                            @php
-                                                $mediaPreview = $article->media_items[0] ?? null;
-                                            @endphp
-                                            <article class="news-item news-carousel-item" data-news-carousel-item {{ $loop->first ? 'data-news-featured-slide' : '' }}>
-                                                @if ($mediaPreview && $mediaPreview['type'] === 'image')
-                                                    <img class="news-item-image" src="{{ $siteConfiguration->imageUrl($mediaPreview['src']) }}" alt="Foto {{ $article->title }}" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
-                                                @elseif ($mediaPreview && $mediaPreview['type'] === 'video' && $mediaPreview['poster'])
-                                                    <img class="news-item-image" src="{{ $siteConfiguration->imageUrl($mediaPreview['poster']) }}" alt="Pratinjau video {{ $article->title }}" loading="{{ $loop->first ? 'eager' : 'lazy' }}">
-                                                @else
-                                                    <div class="news-item-placeholder" aria-hidden="true">
-                                                        @if ($mediaPreview && $mediaPreview['type'] === 'video')
-                                                            <span>▶</span>
-                                                        @endif
-                                                    </div>
-                                                @endif
-                                                <div class="news-item-content">
-                                                    <div class="news-item-meta">
-                                                        @if ($article->category)
-                                                            <span class="news-card-category">{{ $article->category }}</span>
-                                                        @endif
-                                                        @if ($article->published_at)
-                                                            <time class="news-item-date" datetime="{{ $article->published_at->toDateString() }}">{{ $article->published_at->format('d/m/Y') }}</time>
-                                                        @endif
-                                                    </div>
-                                                    <h4><a href="{{ route('news.show', $article->slug) }}">{{ $article->title }}</a></h4>
-                                                    @if ($article->summary)
-                                                        <p>{{ $article->summary }}</p>
-                                                    @endif
-                                                    <a class="news-item-read-more" href="{{ route('news.show', $article->slug) }}">Baca selengkapnya <span aria-hidden="true">→</span></a>
-                                                </div>
-                                            </article>
-                                        @endforeach
-                                    </div>
-                                    <div class="news-carousel-controls" aria-label="Navigasi carousel berita">
-                                        <div class="news-carousel-pages" data-news-pages aria-label="Halaman berita"></div>
-                                        <div class="news-carousel-arrows">
-                                            <button type="button" class="news-carousel-button" data-news-scroll="left" aria-label="Geser berita ke kiri" disabled><span aria-hidden="true">←</span></button>
-                                            <button type="button" class="news-carousel-button" data-news-scroll="right" aria-label="Geser berita ke kanan"><span aria-hidden="true">→</span></button>
+                @if ($carouselNews->isNotEmpty())
+                    <div class="news-home-editorial" data-news-home-layout>
+                        @if ($carouselNews->isNotEmpty())
+                            @php
+                                $mainArticle = $carouselNews->first();
+                                $mainMediaPreview = $mainArticle->media_items[0] ?? null;
+                            @endphp
+                            <article class="news-featured" data-news-home-item data-news-featured-slide>
+                                <a
+                                    class="news-featured__link{{ $mainMediaPreview && ($mainMediaPreview['type'] === 'image' || $mainMediaPreview['poster']) ? '' : ' news-featured__link--without-image' }}"
+                                    href="{{ route('news.show', $mainArticle->slug) }}"
+                                >
+                                    @if ($mainMediaPreview && ($mainMediaPreview['type'] === 'image' || $mainMediaPreview['poster']))
+                                        <figure class="news-featured__image">
+                                            <span class="news-image-fallback" data-news-image-fallback hidden aria-hidden="true">
+                                                <i data-lucide="newspaper"></i>
+                                            </span>
+                                            <img
+                                                src="{{ $siteConfiguration->imageUrl($mainMediaPreview['type'] === 'image' ? $mainMediaPreview['src'] : $mainMediaPreview['poster']) }}"
+                                                alt="{{ $mainMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $mainArticle->title }}"
+                                                fetchpriority="high"
+                                                data-news-image
+                                            >
+                                        </figure>
+                                    @else
+                                        <span class="news-featured__fallback" aria-hidden="true">
+                                            @if ($mainMediaPreview && $mainMediaPreview['type'] === 'video')
+                                                <span>▶</span>
+                                            @else
+                                                <i data-lucide="newspaper"></i>
+                                            @endif
+                                        </span>
+                                    @endif
+                                    <div class="news-featured__copy">
+                                        @if ($mainArticle->category)
+                                            <span class="news-card-category">{{ $mainArticle->category }}</span>
+                                        @endif
+                                        <h2>{{ $mainArticle->title }}</h2>
+                                        <div class="news-featured__meta">
+                                            @if ($mainArticle->published_at)
+                                                <span>
+                                                    <i data-lucide="calendar-days" aria-hidden="true"></i>
+                                                    <time datetime="{{ $mainArticle->published_at->toDateString() }}">{{ $mainArticle->published_at->format('d F Y') }}</time>
+                                                </span>
+                                            @endif
+                                            @if (filled(data_get($mainArticle->metadata, 'author')))
+                                                <span>
+                                                    <i data-lucide="user-round" aria-hidden="true"></i>
+                                                    {{ data_get($mainArticle->metadata, 'author') }}
+                                                </span>
+                                            @endif
                                         </div>
+                                        @if ($mainArticle->summary)
+                                            <p>{{ $mainArticle->summary }}</p>
+                                        @endif
+                                        <span class="news-featured__action">
+                                            Baca Selengkapnya
+                                            <i data-lucide="arrow-right" aria-hidden="true"></i>
+                                        </span>
                                     </div>
-                                    @if ($showAllNewsLink)
-                                        <a class="news-more-link" href="{{ route('news.index') }}">Lihat semua berita <span aria-hidden="true">→</span></a>
+                                </a>
+                            </article>
+                        @endif
+
+                        @if ($carouselNews->count() > 1)
+                            <div class="news-card-grid">
+                                @foreach ($carouselNews->slice(1) as $article)
+                                    @php
+                                        $articleMediaPreview = $article->media_items[0] ?? null;
+                                    @endphp
+                                    <article class="news-card" data-news-home-item>
+                                        <a class="news-card__link" href="{{ route('news.show', $article->slug) }}">
+                                            @if ($articleMediaPreview && ($articleMediaPreview['type'] === 'image' || $articleMediaPreview['poster']))
+                                                <figure class="news-card__image">
+                                                    <span class="news-image-fallback" data-news-image-fallback hidden aria-hidden="true">
+                                                        <i data-lucide="newspaper"></i>
+                                                    </span>
+                                                    <img
+                                                        src="{{ $siteConfiguration->imageUrl($articleMediaPreview['type'] === 'image' ? $articleMediaPreview['src'] : $articleMediaPreview['poster']) }}"
+                                                        alt="{{ $articleMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
+                                                        loading="lazy"
+                                                        data-news-image
+                                                    >
+                                                </figure>
+                                            @else
+                                                <span class="news-card__image news-card__image--empty" aria-hidden="true">
+                                                    @if ($articleMediaPreview && $articleMediaPreview['type'] === 'video')
+                                                        <span>▶</span>
+                                                    @else
+                                                        <i data-lucide="newspaper"></i>
+                                                    @endif
+                                                </span>
+                                            @endif
+                                            <div class="news-card__copy">
+                                                <div class="news-card-meta">
+                                                    @if ($article->category)
+                                                        <span class="news-card-category">{{ $article->category }}</span>
+                                                    @endif
+                                                    @if ($article->published_at)
+                                                        <span class="news-card-date">
+                                                            <i data-lucide="calendar-days" aria-hidden="true"></i>
+                                                            <time datetime="{{ $article->published_at->toDateString() }}">{{ $article->published_at->format('d F Y') }}</time>
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <h2>{{ $article->title }}</h2>
+                                                @if ($article->summary)
+                                                    <p>{{ $article->summary }}</p>
+                                                @endif
+                                                <span class="news-card__action">
+                                                    Baca Selengkapnya
+                                                    <i data-lucide="arrow-right" aria-hidden="true"></i>
+                                                </span>
+                                            </div>
+                                        </a>
+                                    </article>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if ($latestActivity && $latestActivityUrl && $latestActivity->image_path)
+                            <section class="news-activity-panel" aria-labelledby="news-activity-heading">
+                                <h3 class="news-sidebar-heading" id="news-activity-heading">
+                                    <i data-lucide="calendar-days" aria-hidden="true"></i>
+                                    Kegiatan Terbaru
+                                </h3>
+                                <div class="news-activity-media">
+                                    <a class="news-activity-image" href="{{ $latestActivityUrl }}">
+                                        <img src="{{ $siteConfiguration->imageUrl($latestActivity->image_path) }}" alt="Foto {{ $latestActivity->title }}" loading="lazy">
+                                    </a>
+                                    @if ($newsVideos !== [])
+                                        <a class="news-activity-play" href="{{ $newsVideos[0]['href'] }}" target="_blank" rel="noopener noreferrer" aria-label="Putar video kegiatan"><span aria-hidden="true">▶</span></a>
                                     @endif
                                 </div>
-                            @endif
-                            @if ($belowCarouselNews->isNotEmpty())
-                                <section class="news-below-carousel" aria-labelledby="news-below-carousel-heading">
-                                    <h3 class="news-below-carousel__heading" id="news-below-carousel-heading">Berita Sekolah Lainnya</h3>
-                                    <div class="news-below-carousel__grid">
-                                        @foreach ($belowCarouselNews as $article)
-                                            <article class="news-below-carousel-card" data-news-below-carousel-item>
-                                                <a class="news-below-carousel-card__link" href="{{ route('news.show', $article->slug) }}">
-                                                    @if ($article->image_path)
-                                                        <img class="news-below-carousel-card__image" src="{{ $siteConfiguration->imageUrl($article->image_path) }}" alt="Foto {{ $article->title }}" loading="lazy">
-                                                    @else
-                                                        <span class="news-below-carousel-card__placeholder" aria-hidden="true"></span>
-                                                    @endif
-                                                    <div class="news-below-carousel-card__copy">
-                                                        <div class="news-below-carousel-card__meta">
-                                                            @if ($article->category)
-                                                                <span class="news-card-category">{{ $article->category }}</span>
-                                                            @endif
-                                                            @if ($article->published_at)
-                                                                <time datetime="{{ $article->published_at->toDateString() }}">{{ $article->published_at->format('d/m/Y') }}</time>
-                                                            @endif
-                                                        </div>
-                                                        <h4>{{ $article->title }}</h4>
-                                                        @if ($article->summary)
-                                                            <p>{{ $article->summary }}</p>
-                                                        @endif
-                                                        <span class="news-below-carousel-card__action">Baca selengkapnya <span aria-hidden="true">→</span></span>
-                                                    </div>
-                                                </a>
-                                            </article>
-                                        @endforeach
-                                    </div>
-                                    @if ($showAllNewsLink)
-                                        <a class="news-more-link" href="{{ route('news.index') }}">Lihat semua berita <span aria-hidden="true">→</span></a>
+                                <div class="news-activity-copy">
+                                    <h4><a href="{{ $latestActivityUrl }}">{{ $latestActivity->title }}</a></h4>
+                                    @if ($latestActivity->published_at)
+                                        <time datetime="{{ $latestActivity->published_at->toDateString() }}">{{ $latestActivity->published_at->format('d/m/Y') }}</time>
                                     @endif
-                                </section>
-                            @endif
-                        </section>
-                        <aside class="news-sidebar" aria-label="Informasi berita dan kegiatan sekolah">
-                            <section class="news-school-banner" aria-labelledby="news-school-banner-title">
-                                <img src="{{ asset('images/10.jpeg') }}" alt="Kegiatan siswa SMK Islamiyah Ciputat" loading="lazy">
-                                <div class="news-school-banner__copy">
-                                    <span class="news-school-banner__label">SMK ISLAMIYAH CIPUTAT</span>
-                                    <h3 id="news-school-banner-title">Berita &amp; Kegiatan Sekolah</h3>
-                                    <p>Dokumentasi kegiatan, informasi, dan aktivitas terbaru warga sekolah.</p>
-                                    <a class="news-school-banner__action" href="{{ route('news.index') }}">Jelajahi Informasi <span aria-hidden="true">→</span></a>
+                                    @if ($latestActivity->summary)
+                                        <p>{{ $latestActivity->summary }}</p>
+                                    @endif
+                                    <a class="news-activity-action" href="{{ $latestActivityUrl }}">Lihat selengkapnya <span aria-hidden="true">→</span></a>
+                                    @if ($newsVideos !== [])
+                                        @foreach (array_slice($newsVideos, 1) as $video)
+                                            <a class="news-activity-video-link" href="{{ $video['href'] }}" target="_blank" rel="noopener noreferrer">Video {{ $loop->iteration + 1 }} <span aria-hidden="true">↗</span></a>
+                                        @endforeach
+                                    @endif
                                 </div>
                             </section>
+                        @endif
 
-                            @if ($sidebarNews->isNotEmpty())
-                                <section class="news-popular-panel" aria-labelledby="news-popular-heading">
-                                    <h3 class="news-sidebar-heading" id="news-popular-heading">
-                                        <i data-lucide="flame" aria-hidden="true"></i>
-                                        Berita Populer
-                                    </h3>
-                                    <div class="news-popular-list">
-                                        @foreach ($sidebarNews as $article)
-                                            <article class="news-popular-item" data-news-sidebar-item>
-                                                <a class="news-popular-item__image" href="{{ route('news.show', $article->slug) }}" aria-label="Baca {{ $article->title }}">
-                                                    @if ($article->image_path)
-                                                        <img src="{{ $siteConfiguration->imageUrl($article->image_path) }}" alt="" loading="lazy">
-                                                    @else
-                                                        <span class="news-popular-item__placeholder" aria-hidden="true"></span>
-                                                    @endif
-                                                </a>
-                                                <div class="news-popular-item__content">
-                                                    <h4><a href="{{ route('news.show', $article->slug) }}">{{ $article->title }}</a></h4>
-                                                    @if ($article->published_at)
-                                                        <time datetime="{{ $article->published_at->toDateString() }}"><i data-lucide="calendar-days" aria-hidden="true"></i>{{ $article->published_at->format('d/m/Y') }}</time>
-                                                    @endif
-                                                </div>
-                                            </article>
-                                        @endforeach
-                                    </div>
-                                </section>
-                            @endif
-
-                            @if ($latestActivity && $latestActivityUrl && $latestActivity->image_path)
-                                <section class="news-activity-panel" aria-labelledby="news-activity-heading">
-                                    <h3 class="news-sidebar-heading" id="news-activity-heading">
-                                        <i data-lucide="calendar-days" aria-hidden="true"></i>
-                                        Kegiatan Terbaru
-                                    </h3>
-                                    <div class="news-activity-media">
-                                        <a class="news-activity-image" href="{{ $latestActivityUrl }}">
-                                            <img src="{{ $siteConfiguration->imageUrl($latestActivity->image_path) }}" alt="Foto {{ $latestActivity->title }}" loading="lazy">
-                                        </a>
-                                        @if ($newsVideos !== [])
-                                            <a class="news-activity-play" href="{{ $newsVideos[0]['href'] }}" target="_blank" rel="noopener noreferrer" aria-label="Putar video kegiatan"><span aria-hidden="true">▶</span></a>
-                                        @endif
-                                    </div>
-                                    <div class="news-activity-copy">
-                                        <h4><a href="{{ $latestActivityUrl }}">{{ $latestActivity->title }}</a></h4>
-                                        @if ($latestActivity->published_at)
-                                            <time datetime="{{ $latestActivity->published_at->toDateString() }}">{{ $latestActivity->published_at->format('d/m/Y') }}</time>
-                                        @endif
-                                        @if ($latestActivity->summary)
-                                            <p>{{ $latestActivity->summary }}</p>
-                                        @endif
-                                        <a class="news-activity-action" href="{{ $latestActivityUrl }}">Lihat selengkapnya <span aria-hidden="true">→</span></a>
-                                        @if ($newsVideos !== [])
-                                            @foreach (array_slice($newsVideos, 1) as $video)
-                                                <a class="news-activity-video-link" href="{{ $video['href'] }}" target="_blank" rel="noopener noreferrer">Video {{ $loop->iteration + 1 }} <span aria-hidden="true">↗</span></a>
-                                            @endforeach
-                                        @endif
-                                    </div>
-                                </section>
-                            @endif
-                        </aside>
+                        @if ($showAllNewsLink)
+                            <a class="news-more-link" href="{{ route('news.index') }}">
+                                Lihat semua berita
+                                <i data-lucide="arrow-right" aria-hidden="true"></i>
+                            </a>
+                        @endif
                     </div>
                 @else
                     <p class="program-hint">Belum ada berita yang dipublikasikan.</p>

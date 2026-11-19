@@ -53,6 +53,10 @@ class PublicImageStorage
             return;
         }
 
+        if (! Storage::disk('public')->exists($path)) {
+            return;
+        }
+
         if (! Storage::disk('public')->delete($path)) {
             throw new RuntimeException('Media lama gagal dihapus dari storage.');
         }

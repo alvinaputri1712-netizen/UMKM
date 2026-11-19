@@ -101,11 +101,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     : 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif';
                 if (source !== 'device' && fileInput.value) {
                     fileInput.value = '';
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
 
-            if (fileDetails) {
-                fileDetails.textContent = fileInput?.files?.[0]?.name || '';
+            if (fileDetails && !fileInput?.files?.length) {
+                fileDetails.textContent = '';
             }
 
             if (assetInput) {
@@ -165,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             list.append(row);
+            document.dispatchEvent(new CustomEvent('media-manager:initialize-inputs', { detail: row }));
             updateRow(row);
             updateAddButton();
         });

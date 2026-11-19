@@ -97,6 +97,7 @@ class MediaUploadService
     public function storeChunk(string $id, string $fileKey, int $index, UploadedFile $chunk, int $adminId): void
     {
         $manifest = $this->manifest($id, $adminId);
+        abort_if(isset($manifest['completed_asset_id']), 409, 'Unggahan ini sudah selesai.');
         abort_unless(isset($manifest['slots'][$fileKey]), 404);
 
         $slot = $manifest['slots'][$fileKey];
@@ -144,7 +145,34 @@ class MediaUploadService
         $manifest = $this->manifest($id, $adminId);
         $directory = $this->sessionDirectory($adminId, $id);
         $disk = Storage::disk('local');
+
+        if (isset($manifest['completed_asset_id'])) {
+            $asset = MediaAsset::query()->findOrFail($manifest['completed_asset_id']);
+
+            if (
+                ! ($manifest['replacement_complete'] ?? true)
+                && filled($manifest['options']['replace_asset_id'] ?? null)
+            ) {
+                $previousAsset = MediaAsset::query()->find($manifest['options']['replace_asset_id']);
+                $cleanupPending = $previousAsset !== null
+                    && ! $this->library->replaceReferences($previousAsset, $asset);
+                $manifest['replacement_cleanup_pending'] = $cleanupPending;
+                $manifest['replacement_complete'] = true;
+                $this->saveManifest($directory, $manifest);
+            }
+
+            $asset->setAttribute(
+                'replacement_cleanup_pending',
+                (bool) ($manifest['replacement_cleanup_pending'] ?? false),
+            );
+            $asset->setAttribute('idempotent_replay', true);
+
+            return $asset;
+        }
+
         $assembled = [];
+        $asset = null;
+        $completionSaved = false;
 
         foreach ($manifest['slots'] as $fileKey => $slot) {
             $totalChunks = (int) ceil($slot['size'] / $manifest['chunk_size']);
@@ -235,16 +263,40 @@ class MediaUploadService
                 $options['alt_text'],
             );
 
+            $manifest['completed_asset_id'] = $asset->id;
+            $manifest['replacement_complete'] = blank($options['replace_asset_id']);
+            $manifest['replacement_cleanup_pending'] = false;
+            $this->saveManifest($directory, $manifest);
+            $completionSaved = true;
+
             if (filled($options['replace_asset_id'])) {
                 $previousAsset = MediaAsset::query()->findOrFail($options['replace_asset_id']);
-                $asset->setAttribute(
-                    'replacement_cleanup_pending',
-                    ! $this->library->replaceReferences($previousAsset, $asset),
-                );
+                $cleanupPending = ! $this->library->replaceReferences($previousAsset, $asset);
+                $asset->setAttribute('replacement_cleanup_pending', $cleanupPending);
+                $manifest['replacement_cleanup_pending'] = $cleanupPending;
+                $manifest['replacement_complete'] = true;
+                $this->saveManifest($directory, $manifest);
             }
         } catch (Throwable $exception) {
             foreach ($assembled as $file) {
                 @unlink($file->getRealPath());
+            }
+
+            if ($asset !== null && ! $completionSaved) {
+                try {
+                    if (! $this->library->delete($asset)) {
+                        Log::warning('A completed media asset could not be rolled back after its upload manifest failed to save.', [
+                            'upload_id' => $id,
+                            'media_asset_id' => $asset->id,
+                        ]);
+                    }
+                } catch (Throwable $cleanupException) {
+                    Log::warning('A completed media asset could not be rolled back after its upload manifest failed to save.', [
+                        'upload_id' => $id,
+                        'media_asset_id' => $asset->id,
+                        'exception' => $cleanupException->getMessage(),
+                    ]);
+                }
             }
 
             throw $exception;
@@ -254,7 +306,10 @@ class MediaUploadService
             @unlink($file->getRealPath());
         }
 
-        if (! $disk->deleteDirectory($directory)) {
+        if (
+            ! $disk->deleteDirectory($directory.'/chunks')
+            || ! $disk->deleteDirectory($directory.'/assembled')
+        ) {
             Log::warning('A media upload completed but temporary chunks could not be removed.', [
                 'upload_id' => $id,
                 'admin_id' => $adminId,
@@ -266,7 +321,8 @@ class MediaUploadService
 
     public function cancel(string $id, int $adminId): void
     {
-        $this->manifest($id, $adminId);
+        $manifest = $this->manifest($id, $adminId);
+        abort_if(isset($manifest['completed_asset_id']), 409, 'Unggahan yang sudah selesai tidak dapat dibatalkan sebagai sesi sementara.');
         if (! Storage::disk('local')->deleteDirectory($this->sessionDirectory($adminId, $id))) {
             throw new HttpException(500, 'File sementara unggahan gagal dibersihkan.');
         }
@@ -308,11 +364,23 @@ class MediaUploadService
             if (basename($path) !== 'manifest.json') {
                 continue;
             }
-
             $manifest = json_decode($disk->get($path), true);
             if (is_array($manifest) && isset($manifest['created_at']) && now()->diffInHours($manifest['created_at']) >= 24) {
                 $disk->deleteDirectory(dirname($path));
             }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $manifest
+     */
+    private function saveManifest(string $directory, array $manifest): void
+    {
+        if (! Storage::disk('local')->put(
+            $directory.'/manifest.json',
+            json_encode($manifest, JSON_THROW_ON_ERROR),
+        )) {
+            throw new HttpException(500, 'Status unggahan gagal diperbarui.');
         }
     }
 

@@ -13,9 +13,13 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use RuntimeException;
+use Throwable;
 
 class SettingsController extends Controller
 {
@@ -161,84 +165,136 @@ class SettingsController extends Controller
 
         $validatedSettings = $request->validate($rules);
         $currentValues = $configuration->all();
-        $oldImages = [];
+        $oldMediaPaths = [];
+        $newMediaPaths = [];
+        $settingsToUpdate = [];
 
-        foreach ($fields as $key => $field) {
-            $fieldName = Str::after($key, $section.'.');
-            $oldValue = $currentValues[$key] ?? null;
+        try {
+            foreach ($fields as $key => $field) {
+                $fieldName = Str::after($key, $section.'.');
+                $oldValue = $currentValues[$key] ?? null;
 
-            if ($field['type'] === 'video_source') {
-                $source = Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.source');
+                if ($field['type'] === 'video_source') {
+                    $source = Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.source');
 
-                if ($source === null || $source === 'existing') {
-                    continue;
-                }
+                    if ($source === null || $source === 'existing') {
+                        continue;
+                    }
 
-                $value = match ($source) {
-                    'media' => $images->storeFromAsset(
-                        (int) Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.asset_id'),
-                        'video',
-                    ),
-                    'url' => trim(Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.url')),
-                    'upload' => $mediaLibrary->storeVideo(
-                        $request->file('video_uploads.'.$section.'.'.$fieldName),
-                        'general',
-                        'original',
-                        Auth::guard('admin')->id(),
-                    )->publicPath(),
-                    default => null,
-                };
-            } elseif ($field['type'] === 'image') {
-                $newFile = $request->file('uploads.'.$section.'.'.$fieldName);
-                $assetId = $request->input('media_asset_ids.'.$section.'.'.$fieldName);
-                $removeImage = $request->boolean('remove_images.'.$section.'.'.$fieldName);
+                    $value = match ($source) {
+                        'media' => $images->storeFromAsset(
+                            (int) Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.asset_id'),
+                            'video',
+                        ),
+                        'url' => trim(Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName.'.url')),
+                        'upload' => $mediaLibrary->storeVideo(
+                            $request->file('video_uploads.'.$section.'.'.$fieldName),
+                            'general',
+                            'original',
+                            Auth::guard('admin')->id(),
+                        )->publicPath(),
+                        default => null,
+                    };
 
-                if ($newFile !== null) {
-                    $category = Str::before($fieldName, '.');
-                    $category = in_array($category, ['hero', 'news', 'program', 'gallery', 'teacher'], true)
-                        ? $category
-                        : 'general';
-                    $value = $images->store(
-                        $newFile,
-                        'cms/settings',
-                        $category,
-                        $request->file('source_uploads.'.$section.'.'.$fieldName),
-                        Auth::guard('admin')->id(),
-                    );
-                } elseif (filled($assetId)) {
-                    $value = $images->storeFromAsset((int) $assetId);
-                } elseif ($removeImage) {
-                    $value = null;
+                    if ($source === 'upload' && is_string($value)) {
+                        $newMediaPaths[] = $value;
+                    }
+                } elseif ($field['type'] === 'image') {
+                    $newFile = $request->file('uploads.'.$section.'.'.$fieldName);
+                    $assetId = $request->input('media_asset_ids.'.$section.'.'.$fieldName);
+                    $removeImage = $request->boolean('remove_images.'.$section.'.'.$fieldName);
+
+                    if ($newFile !== null) {
+                        $category = Str::before($fieldName, '.');
+                        $category = in_array($category, ['hero', 'news', 'program', 'gallery', 'teacher'], true)
+                            ? $category
+                            : 'general';
+                        $value = $images->store(
+                            $newFile,
+                            'cms/settings',
+                            $category,
+                            $request->file('source_uploads.'.$section.'.'.$fieldName),
+                            Auth::guard('admin')->id(),
+                        );
+                        $newMediaPaths[] = $value;
+                    } elseif (filled($assetId)) {
+                        $value = $images->storeFromAsset((int) $assetId);
+                    } elseif ($removeImage) {
+                        $value = null;
+                    } else {
+                        continue;
+                    }
+                } elseif ($field['type'] === 'checkbox') {
+                    $value = $request->boolean('settings.'.$section.'.'.$fieldName);
                 } else {
-                    continue;
+                    $value = Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName);
                 }
 
-                if (filled($oldValue)) {
-                    $oldImages[] = $oldValue;
+                if (
+                    in_array($field['type'], ['image', 'video_source'], true)
+                    && filled($oldValue)
+                    && $oldValue !== $value
+                ) {
+                    $oldMediaPaths[] = $oldValue;
                 }
-            } elseif ($field['type'] === 'checkbox') {
-                $value = $request->boolean('settings.'.$section.'.'.$fieldName);
-            } else {
-                $value = Arr::get($validatedSettings, 'settings.'.$section.'.'.$fieldName);
-            }
 
-            SiteSetting::query()->updateOrCreate(
-                ['key' => $key],
-                [
+                $settingsToUpdate[] = [
+                    'key' => $key,
                     'group' => $section,
                     'value' => json_encode($value, JSON_THROW_ON_ERROR),
-                ],
-            );
-        }
+                ];
+            }
 
-        foreach ($oldImages as $oldImage) {
-            $images->deleteIfUnused($oldImage);
+            DB::transaction(function () use ($settingsToUpdate): void {
+                foreach ($settingsToUpdate as $setting) {
+                    $record = SiteSetting::query()->firstOrNew(['key' => $setting['key']]);
+                    $record->group = $setting['group'];
+                    $record->value = $setting['value'];
+
+                    if (! $record->save()) {
+                        throw new RuntimeException('Pengaturan website gagal disimpan.');
+                    }
+                }
+            });
+        } catch (Throwable $exception) {
+            $this->cleanupUnattachedMediaPaths($newMediaPaths, $images);
+
+            throw $exception;
         }
 
         $configuration->forgetCache();
 
+        foreach (array_unique($oldMediaPaths) as $oldMediaPath) {
+            $images->deleteIfUnused($oldMediaPath);
+        }
+
         return redirect()
             ->route('admin.settings.index', ['section' => $section])
             ->with('success', 'Pengaturan berhasil disimpan.');
+    }
+
+    /**
+     * @param  array<int, string>  $paths
+     */
+    private function cleanupUnattachedMediaPaths(array $paths, PublicImageStorage $images): void
+    {
+        foreach (array_unique($paths) as $path) {
+            try {
+                if (! $images->canDelete($path)) {
+                    Log::warning('A newly uploaded setting media remained after persistence failed because it is still referenced.', [
+                        'path' => $path,
+                    ]);
+
+                    continue;
+                }
+
+                $images->deleteIfUnused($path);
+            } catch (Throwable $exception) {
+                Log::warning('A newly uploaded setting media could not be cleaned up after persistence failed.', [
+                    'path' => $path,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
     }
 }

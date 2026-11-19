@@ -537,6 +537,31 @@
     line-height: 1.6;
 }
 
+.news-home-editorial {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+}
+
+.news-home-editorial > .news-featured,
+.news-home-editorial > .news-card-grid {
+    grid-area: auto;
+}
+
+.news-home-editorial .news-featured__image {
+    max-height: 420px;
+}
+
+.news-home-editorial .news-card-grid {
+    gap: 16px;
+}
+
+.news-home-editorial a:focus-visible {
+    outline: 2px solid #0b7048;
+    outline-offset: 3px;
+}
+
 .news-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.48fr) minmax(320px, 1fr);
@@ -11688,6 +11713,14 @@ body:has(.teacher-section.educator-lanyard-section .lanyard-id-card.is-open)::af
 }
 
 @media (max-width: 640px) {
+    .news-home-editorial {
+        gap: 14px;
+    }
+
+    .news-home-editorial .news-featured__image {
+        max-height: 260px;
+    }
+
     .news-index-page {
         padding-block: 22px 42px;
     }

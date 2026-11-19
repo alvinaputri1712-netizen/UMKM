@@ -3,9 +3,11 @@
 namespace App\Support;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 class MediaImageProcessor
 {
@@ -72,6 +74,8 @@ class MediaImageProcessor
             throw new RuntimeException('File sementara untuk pemrosesan gambar tidak dapat dibuat.');
         }
 
+        $relativePath = null;
+
         try {
             if (! imagewebp($output, $temporaryPath, (int) $qualitySettings)) {
                 throw new RuntimeException('Format WebP gagal dibuat. File asli tetap dipertahankan.');
@@ -101,6 +105,23 @@ class MediaImageProcessor
                 'height' => $height,
                 'size' => filesize($temporaryPath) ?: 0,
             ];
+        } catch (Throwable $exception) {
+            if (is_string($relativePath)) {
+                try {
+                    if (! Storage::disk('public')->delete($relativePath)) {
+                        Log::warning('A partial optimized image could not be removed from storage.', [
+                            'path' => $relativePath,
+                        ]);
+                    }
+                } catch (Throwable $cleanupException) {
+                    Log::warning('A partial optimized image could not be removed from storage.', [
+                        'path' => $relativePath,
+                        'exception' => $cleanupException->getMessage(),
+                    ]);
+                }
+            }
+
+            throw $exception;
         } finally {
             imagedestroy($output);
             imagedestroy($image);

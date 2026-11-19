@@ -285,11 +285,16 @@
                                             name="news_media[{{ $index }}][file]"
                                             type="file"
                                             data-news-media-file
+                                            data-media-file
                                             accept="{{ $mediaType === 'video' ? 'video/mp4,video/webm,video/ogg,.mp4,.m4v,.webm,.ogv,.ogg' : 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif' }}"
                                             {{ $mediaSource !== 'device' ? 'disabled' : '' }}
                                             {{ $mediaSource === 'device' ? 'required' : '' }}
                                         >
-                                        <small data-news-media-file-details></small>
+                                        <div class="admin-media-upload-preview" data-media-preview hidden>
+                                            <img alt="Pratinjau foto baru" data-media-image-preview hidden>
+                                            <video controls preload="metadata" data-media-video-preview hidden></video>
+                                        </div>
+                                        <small data-news-media-file-details data-media-file-details></small>
                                         @error('news_media.'.$index.'.file')<small class="admin-field-error">{{ $message }}</small>@enderror
                                     </div>
                                     <input
@@ -343,8 +348,12 @@
                                 </div>
                                 <div class="admin-field admin-field-full" data-news-media-file-control hidden>
                                     <label for="news-media-__INDEX__-file">Pilih foto atau video dari perangkat</label>
-                                    <input id="news-media-__INDEX__-file" name="news_media[__INDEX__][file]" type="file" data-news-media-file disabled>
-                                    <small data-news-media-file-details></small>
+                                    <input id="news-media-__INDEX__-file" name="news_media[__INDEX__][file]" type="file" data-news-media-file data-media-file disabled>
+                                    <div class="admin-media-upload-preview" data-media-preview hidden>
+                                        <img alt="Pratinjau foto baru" data-media-image-preview hidden>
+                                        <video controls preload="metadata" data-media-video-preview hidden></video>
+                                    </div>
+                                    <small data-news-media-file-details data-media-file-details></small>
                                 </div>
                                 <input type="hidden" name="news_media[__INDEX__][asset_id]" value="" data-news-media-asset-id disabled>
                                 <div class="admin-field admin-field-full">

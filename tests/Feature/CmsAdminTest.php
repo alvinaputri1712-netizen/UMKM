@@ -10,6 +10,7 @@ use App\Models\PrincipalWelcome;
 use App\Models\SiteSetting;
 use App\Models\Teacher;
 use App\Support\MediaUsage;
+use App\Support\SiteConfiguration;
 use Database\Seeders\CmsContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -378,6 +379,33 @@ class CmsAdminTest extends TestCase
             ->assertSee($videoAsset->publicPath(), false);
     }
 
+    public function test_news_media_is_cleaned_up_when_the_content_record_is_not_saved(): void
+    {
+        Storage::fake('public');
+        NewsArticle::creating(fn (NewsArticle $article): bool => false);
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.content.store', 'news'), [
+                'title' => 'Berita Gagal Disimpan',
+                'slug' => 'berita-gagal-disimpan',
+                'summary' => 'Ringkasan.',
+                'body' => 'Isi berita.',
+                'status' => 'published',
+                'metadata' => ['homepage_group' => 'latest'],
+                'news_media' => [[
+                    'type' => 'video',
+                    'source' => 'device',
+                    'file' => UploadedFile::fake()->create('unsaved-news.mp4', 100, 'video/mp4'),
+                ]],
+            ])
+            ->assertStatus(500);
+
+        $this->assertDatabaseCount('news_articles', 0);
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles('cms/media/videos'));
+    }
+
     public function test_admin_rejects_more_than_twenty_news_media_items_and_non_http_media_urls(): void
     {
         $admin = $this->createAdmin();
@@ -629,6 +657,120 @@ class CmsAdminTest extends TestCase
             ->assertRedirect(route('admin.content.index', 'news'));
 
         Storage::disk('public')->assertMissing('cms/news/shared.jpg');
+    }
+
+    public function test_editing_news_preserves_unchanged_media_and_replaces_unused_photo_and_video(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdmin();
+        $oldImage = $this->createMediaAsset('image', 'cms/media/originals/old-news.jpg', 'image/jpeg');
+        $oldVideo = $this->createMediaAsset('video', 'cms/media/videos/old-news.mp4', 'video/mp4');
+        $article = NewsArticle::query()->create([
+            'title' => 'Berita Media Lama',
+            'slug' => 'berita-media-lama',
+            'summary' => 'Ringkasan awal.',
+            'body' => 'Isi awal.',
+            'status' => 'published',
+            'published_at' => now(),
+            'image_path' => $oldImage->publicPath(),
+            'metadata' => [
+                'homepage_group' => 'latest',
+                'media' => [
+                    ['type' => 'image', 'source' => 'asset', 'asset_id' => $oldImage->id, 'path' => $oldImage->publicPath()],
+                    ['type' => 'video', 'source' => 'asset', 'asset_id' => $oldVideo->id, 'path' => $oldVideo->publicPath()],
+                ],
+            ],
+        ]);
+        $unchangedData = [
+            'title' => 'Berita Media Lama Diperbarui',
+            'slug' => 'berita-media-lama',
+            'summary' => 'Ringkasan diperbarui.',
+            'body' => 'Isi diperbarui.',
+            'category' => 'Kegiatan Sekolah',
+            'status' => 'published',
+            'published_at' => now()->format('Y-m-d\TH:i'),
+            'metadata' => ['homepage_group' => 'latest'],
+            'news_media' => [
+                ['type' => 'image', 'source' => 'asset', 'asset_id' => $oldImage->id],
+                ['type' => 'video', 'source' => 'asset', 'asset_id' => $oldVideo->id],
+            ],
+        ];
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.content.update', ['type' => 'news', 'entry' => $article]), $unchangedData)
+            ->assertRedirect(route('admin.content.index', 'news'));
+
+        $this->assertModelExists($oldImage->fresh());
+        $this->assertModelExists($oldVideo->fresh());
+        Storage::disk('public')->assertExists($oldImage->publicPath());
+        Storage::disk('public')->assertExists($oldVideo->publicPath());
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.content.update', ['type' => 'news', 'entry' => $article]), [
+                ...$unchangedData,
+                'news_media' => [
+                    [
+                        'type' => 'image',
+                        'source' => 'device',
+                        'file' => UploadedFile::fake()->image('news-new.jpg', 600, 400),
+                    ],
+                    [
+                        'type' => 'video',
+                        'source' => 'device',
+                        'file' => UploadedFile::fake()->create('news-new.mp4', 100, 'video/mp4'),
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.content.index', 'news'));
+
+        $article->refresh();
+        $newImage = MediaAsset::query()->where('filename', 'news-new.jpg')->firstOrFail();
+        $newVideo = MediaAsset::query()->where('filename', 'news-new.mp4')->firstOrFail();
+        $this->assertDatabaseMissing('media_assets', ['id' => $oldImage->id]);
+        $this->assertDatabaseMissing('media_assets', ['id' => $oldVideo->id]);
+        Storage::disk('public')->assertMissing($oldImage->publicPath());
+        Storage::disk('public')->assertMissing($oldVideo->publicPath());
+        Storage::disk('public')->assertExists($newImage->publicPath());
+        Storage::disk('public')->assertExists($newVideo->publicPath());
+        $this->assertSame($newImage->publicPath(), $article->image_path);
+        $this->get(route('news.show', $article->slug))
+            ->assertOk()
+            ->assertSee($newVideo->publicPath(), false);
+    }
+
+    public function test_deleting_news_removes_unused_video_and_poster_assets(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdmin();
+        $video = $this->createMediaAsset('video', 'cms/media/videos/news-to-delete.mp4', 'video/mp4');
+        $posterPath = 'cms/media/posters/news-to-delete.webp';
+        Storage::disk('public')->put($posterPath, 'poster-data');
+        $video->update(['poster_path' => $posterPath]);
+        $article = NewsArticle::query()->create([
+            'title' => 'Berita Video Dihapus',
+            'slug' => 'berita-video-dihapus',
+            'status' => 'published',
+            'published_at' => now(),
+            'metadata' => [
+                'media' => [[
+                    'type' => 'video',
+                    'source' => 'asset',
+                    'asset_id' => $video->id,
+                    'path' => $video->publicPath(),
+                    'poster_path' => $posterPath,
+                ]],
+            ],
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->delete(route('admin.content.destroy', ['type' => 'news', 'entry' => $article]))
+            ->assertRedirect(route('admin.content.index', 'news'));
+
+        $this->assertDatabaseMissing('news_articles', ['id' => $article->id]);
+        $this->assertDatabaseMissing('media_assets', ['id' => $video->id]);
+        Storage::disk('public')->assertMissing($video->publicPath());
+        Storage::disk('public')->assertMissing($posterPath);
+        $this->get(route('news.show', $article->slug))->assertNotFound();
     }
 
     public function test_admin_rejects_an_unknown_homepage_placement(): void
@@ -1172,6 +1314,84 @@ class CmsAdminTest extends TestCase
             ->assertSee('Pilih video dari perangkat')
             ->assertSee('Pertahankan video tersimpan')
             ->assertDontSee('Media Manager');
+    }
+
+    public function test_replacing_a_homepage_video_url_removes_the_unused_local_video_asset(): void
+    {
+        Storage::fake('public');
+        $admin = $this->createAdmin();
+        $video = $this->createMediaAsset('video', 'cms/media/videos/homepage-old.mp4', 'video/mp4');
+        SiteSetting::query()->create([
+            'key' => 'home.news.video_1',
+            'group' => 'home',
+            'value' => json_encode($video->publicPath(), JSON_THROW_ON_ERROR),
+        ]);
+        app(SiteConfiguration::class)->forgetCache();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'home',
+                'settings' => [
+                    'home' => [
+                        'news' => [
+                            'video_1' => [
+                                'source' => 'url',
+                                'url' => 'https://cdn.example.test/videos/homepage-new.mp4',
+                            ],
+                        ],
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.settings.index', ['section' => 'home']));
+
+        $this->assertDatabaseMissing('media_assets', ['id' => $video->id]);
+        Storage::disk('public')->assertMissing($video->publicPath());
+        $this->assertSame(
+            'https://cdn.example.test/videos/homepage-new.mp4',
+            json_decode(SiteSetting::query()->findOrFail('home.news.video_1')->value, true, flags: JSON_THROW_ON_ERROR),
+        );
+        NewsArticle::query()->create([
+            'title' => 'Berita Dengan Video Beranda',
+            'slug' => 'berita-dengan-video-beranda',
+            'summary' => 'Aktivitas sekolah.',
+            'image_path' => 'https://example.test/news.jpg',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('https://cdn.example.test/videos/homepage-new.mp4', false);
+    }
+
+    public function test_uploaded_setting_video_is_cleaned_up_when_setting_save_is_vetoed(): void
+    {
+        Storage::fake('public');
+        SiteSetting::saving(fn (SiteSetting $setting): bool => false);
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->put(route('admin.settings.update'), [
+                'section' => 'home',
+                'settings' => [
+                    'home' => [
+                        'news' => [
+                            'video_1' => ['source' => 'upload'],
+                        ],
+                    ],
+                ],
+                'video_uploads' => [
+                    'home' => [
+                        'news' => [
+                            'video_1' => UploadedFile::fake()->create('unsaved-setting.mp4', 100, 'video/mp4'),
+                        ],
+                    ],
+                ],
+            ])
+            ->assertStatus(500);
+
+        $this->assertDatabaseCount('site_settings', 0);
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertSame([], Storage::disk('public')->allFiles('cms/media/videos'));
     }
 
     public function test_admin_cannot_use_an_image_as_a_homepage_video(): void

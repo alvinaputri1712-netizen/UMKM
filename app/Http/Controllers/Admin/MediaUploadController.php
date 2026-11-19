@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MediaAsset;
+use App\Support\MediaLibrary;
 use App\Support\MediaUploadService;
 use App\Support\SiteConfiguration;
 use Illuminate\Http\JsonResponse;
@@ -104,11 +105,16 @@ class MediaUploadController extends Controller
             'optimized_size' => $asset->optimized_size,
             'replacement_cleanup_pending' => $asset->replacement_cleanup_pending ?? false,
             'poster_url' => route('admin.media.poster', $asset),
-        ], 201);
+        ], $asset->getAttribute('idempotent_replay') ? 200 : 201);
     }
 
     public function poster(Request $request, MediaAsset $media, MediaLibrary $library): JsonResponse
     {
+        abort_if(
+            $request->user('admin')?->isEditor(),
+            403,
+            'Editor tidak memiliki izin untuk mengubah poster video.',
+        );
         abort_unless($media->media_type === 'video', 404);
         $validated = $request->validate([
             'poster' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,avif', 'extensions:jpg,jpeg,png,webp,avif', 'max:8192'],

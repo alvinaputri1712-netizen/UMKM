@@ -89,36 +89,66 @@ class MediaLibrary
             $processed = $this->imageProcessor->optimize($file, $category, $quality, 'cms/media/optimized');
             $optimizedPath = $processed['path'];
 
-            return DB::transaction(fn (): MediaAsset => MediaAsset::query()->create([
-                'disk' => 'public',
-                'filename' => $this->safeFilename($source->getClientOriginalName()),
-                'original_path' => $originalPath,
-                'optimized_path' => $optimizedPath,
-                'media_type' => 'image',
-                'mime_type' => $imageInfo['mime'],
-                'file_size' => $source->getSize(),
-                'optimized_size' => $processed['size'],
-                'width' => $processed['width'],
-                'height' => $processed['height'],
-                'quality' => $quality,
-                'category' => $category,
-                'alt_text' => $altText,
-                'processing' => [
-                    'source_width' => (int) $imageInfo[0],
-                    'source_height' => (int) $imageInfo[1],
-                    'output_mime_type' => $processed['mime_type'],
-                    'resized_without_cropping' => $processed['width'] !== (int) $imageInfo[0]
-                        || $processed['height'] !== (int) $imageInfo[1],
-                    'orientation_corrected' => $imageInfo['mime'] === 'image/jpeg',
-                ],
-                'created_by_admin_id' => $adminId,
-            ]));
+            return DB::transaction(function () use (
+                $source,
+                $originalPath,
+                $optimizedPath,
+                $imageInfo,
+                $processed,
+                $quality,
+                $category,
+                $altText,
+                $adminId,
+            ): MediaAsset {
+                $asset = MediaAsset::query()->create([
+                    'disk' => 'public',
+                    'filename' => $this->safeFilename($source->getClientOriginalName()),
+                    'original_path' => $originalPath,
+                    'optimized_path' => $optimizedPath,
+                    'media_type' => 'image',
+                    'mime_type' => $imageInfo['mime'],
+                    'file_size' => $source->getSize(),
+                    'optimized_size' => $processed['size'],
+                    'width' => $processed['width'],
+                    'height' => $processed['height'],
+                    'quality' => $quality,
+                    'category' => $category,
+                    'alt_text' => $altText,
+                    'processing' => [
+                        'source_width' => (int) $imageInfo[0],
+                        'source_height' => (int) $imageInfo[1],
+                        'output_mime_type' => $processed['mime_type'],
+                        'resized_without_cropping' => $processed['width'] !== (int) $imageInfo[0]
+                            || $processed['height'] !== (int) $imageInfo[1],
+                        'orientation_corrected' => $imageInfo['mime'] === 'image/jpeg',
+                    ],
+                    'created_by_admin_id' => $adminId,
+                ]);
+
+                if (! $asset->exists) {
+                    throw new RuntimeException('Data media gambar gagal disimpan.');
+                }
+
+                return $asset;
+            });
         } catch (Throwable $exception) {
-            if (! Storage::disk('public')->delete(array_filter([$storedOriginal, $optimizedPath]))) {
-                Log::warning('An incomplete image upload could not be fully cleaned up.', [
+            $cleanupException = null;
+            try {
+                $cleaned = Storage::disk('public')->delete(array_filter([$storedOriginal, $optimizedPath]));
+            } catch (Throwable $failure) {
+                $cleaned = false;
+                $cleanupException = $failure;
+            }
+
+            if (! $cleaned) {
+                $context = [
                     'original_path' => $storedOriginal,
                     'optimized_path' => $optimizedPath,
-                ]);
+                ];
+                if ($cleanupException !== null) {
+                    $context['exception'] = $cleanupException->getMessage();
+                }
+                Log::warning('An incomplete image upload could not be fully cleaned up.', $context);
             }
 
             throw $exception;
@@ -150,31 +180,51 @@ class MediaLibrary
         }
 
         try {
-            return DB::transaction(fn (): MediaAsset => MediaAsset::query()->create([
-                'disk' => 'public',
-                'filename' => $this->safeFilename($file->getClientOriginalName()),
-                'original_path' => $path,
-                'optimized_path' => $path,
-                'media_type' => 'video',
-                'mime_type' => $mimeType,
-                'file_size' => $file->getSize(),
-                'optimized_size' => $file->getSize(),
-                'width' => $metadata['width'] ?? null,
-                'height' => $metadata['height'] ?? null,
-                'duration_seconds' => $metadata['duration_seconds'] ?? null,
-                'quality' => 'original',
-                'category' => $category,
-                'processing' => [
-                    'video_optimization' => 'unavailable_without_ffmpeg',
-                    'requested_quality' => $quality,
-                ],
-                'created_by_admin_id' => $adminId,
-            ]));
-        } catch (Throwable $exception) {
-            if (! Storage::disk('public')->delete($path)) {
-                Log::warning('An incomplete video upload could not be cleaned up.', [
-                    'path' => $path,
+            return DB::transaction(function () use ($file, $path, $mimeType, $metadata, $quality, $category, $adminId): MediaAsset {
+                $asset = MediaAsset::query()->create([
+                    'disk' => 'public',
+                    'filename' => $this->safeFilename($file->getClientOriginalName()),
+                    'original_path' => $path,
+                    'optimized_path' => $path,
+                    'media_type' => 'video',
+                    'mime_type' => $mimeType,
+                    'file_size' => $file->getSize(),
+                    'optimized_size' => $file->getSize(),
+                    'width' => $metadata['width'] ?? null,
+                    'height' => $metadata['height'] ?? null,
+                    'duration_seconds' => $metadata['duration_seconds'] ?? null,
+                    'quality' => 'original',
+                    'category' => $category,
+                    'processing' => [
+                        'video_optimization' => 'unavailable_without_ffmpeg',
+                        'requested_quality' => $quality,
+                    ],
+                    'created_by_admin_id' => $adminId,
                 ]);
+
+                if (! $asset->exists) {
+                    throw new RuntimeException('Data media video gagal disimpan.');
+                }
+
+                return $asset;
+            });
+        } catch (Throwable $exception) {
+            $cleanupException = null;
+            try {
+                $cleaned = Storage::disk('public')->delete($path);
+            } catch (Throwable $failure) {
+                $cleaned = false;
+                $cleanupException = $failure;
+            }
+
+            if (! $cleaned) {
+                $context = [
+                    'path' => $path,
+                ];
+                if ($cleanupException !== null) {
+                    $context['exception'] = $cleanupException->getMessage();
+                }
+                Log::warning('An incomplete video upload could not be cleaned up.', $context);
             }
 
             throw $exception;
@@ -188,37 +238,138 @@ class MediaLibrary
 
         $oldPath = $asset->poster_path;
         try {
-            $asset->update(['poster_path' => $path]);
+            if (! $asset->update(['poster_path' => $path])) {
+                throw new RuntimeException('Poster video gagal diperbarui.');
+            }
         } catch (Throwable $exception) {
-            Storage::disk('public')->delete($path);
+            $cleanupException = null;
+            try {
+                $cleaned = Storage::disk('public')->delete($path);
+            } catch (Throwable $failure) {
+                $cleaned = false;
+                $cleanupException = $failure;
+            }
+
+            if (! $cleaned) {
+                $context = [
+                    'media_asset_id' => $asset->id,
+                    'path' => $path,
+                ];
+                if ($cleanupException !== null) {
+                    $context['exception'] = $cleanupException->getMessage();
+                }
+                Log::warning('A poster upload could not be cleaned up after its asset update failed.', $context);
+            }
 
             throw $exception;
         }
 
         if ($oldPath !== null && $oldPath !== $path) {
-            Storage::disk($asset->disk)->delete($oldPath);
+            if (! Storage::disk($asset->disk)->delete($oldPath)) {
+                Log::warning('A replaced video poster could not be deleted from storage.', [
+                    'media_asset_id' => $asset->id,
+                    'path' => $oldPath,
+                ]);
+            }
         }
     }
 
     public function canDelete(MediaAsset $asset): bool
     {
-        return $this->usage->forAssets(collect([$asset]))[$asset->id] === [];
-    }
-
-    public function delete(MediaAsset $asset): bool
-    {
-        if (! $this->canDelete($asset)) {
-            return false;
-        }
-
         $paths = array_values(array_unique(array_filter([
             $asset->original_path,
             $asset->optimized_path,
             $asset->poster_path,
         ])));
-        $disk = Storage::disk($asset->disk);
+        $isUsedByAnotherAsset = MediaAsset::query()
+            ->where('id', '<>', $asset->getKey())
+            ->where(function ($query) use ($paths): void {
+                $query->whereIn('original_path', $paths)
+                    ->orWhereIn('optimized_path', $paths)
+                    ->orWhereIn('poster_path', $paths);
+            })
+            ->exists();
 
-        if (! $disk->delete($paths)) {
+        return ! $isUsedByAnotherAsset
+            && ($this->usage->forAssets(collect([$asset]))[$asset->id] ?? []) === [];
+    }
+
+    public function delete(MediaAsset $asset): bool
+    {
+        $diskName = null;
+        $trashDirectory = null;
+        $paths = [];
+        $stagedFiles = [];
+
+        try {
+            $deleted = DB::transaction(function () use ($asset, &$diskName, &$trashDirectory, &$paths, &$stagedFiles): bool {
+                $lockedAsset = MediaAsset::query()
+                    ->lockForUpdate()
+                    ->find($asset->getKey());
+
+                if ($lockedAsset === null || ! $this->canDelete($lockedAsset)) {
+                    return false;
+                }
+
+                $diskName = $lockedAsset->disk;
+                $paths = array_values(array_unique(array_filter([
+                    $lockedAsset->original_path,
+                    $lockedAsset->optimized_path,
+                    $lockedAsset->poster_path,
+                ])));
+                $disk = Storage::disk($diskName);
+                $trashDirectory = 'cms/media/.trash/'.Str::uuid();
+
+                foreach ($paths as $index => $path) {
+                    if (! $disk->exists($path)) {
+                        continue;
+                    }
+
+                    $filename = basename(str_replace('\\', '/', $path));
+                    $stagedPath = $trashDirectory.'/'.$index.'-'.$filename;
+
+                    if (! $disk->move($path, $stagedPath)) {
+                        Log::warning('A media file could not be staged before its database record was deleted.', [
+                            'media_asset_id' => $lockedAsset->id,
+                            'path' => $path,
+                        ]);
+
+                        return false;
+                    }
+
+                    $stagedFiles[$path] = $stagedPath;
+                }
+
+                $deleted = (bool) $lockedAsset->delete();
+                if (! $deleted) {
+                    Log::warning('A media database record could not be deleted; staged files will be restored.', [
+                        'media_asset_id' => $lockedAsset->id,
+                    ]);
+                }
+
+                return $deleted;
+            });
+        } catch (Throwable $exception) {
+            if (is_string($diskName)) {
+                $this->restoreStagedFiles($diskName, $stagedFiles, $asset->id);
+            }
+
+            throw $exception;
+        }
+
+        if (! $deleted) {
+            if (is_string($diskName)) {
+                $this->restoreStagedFiles($diskName, $stagedFiles, $asset->id);
+            }
+
+            return false;
+        }
+
+        if (
+            $stagedFiles !== []
+            && is_string($trashDirectory)
+            && ! Storage::disk($diskName)->deleteDirectory($trashDirectory)
+        ) {
             Log::warning('Media files could not be deleted from storage.', [
                 'media_asset_id' => $asset->id,
                 'paths' => $paths,
@@ -230,6 +381,54 @@ class MediaLibrary
         DB::transaction(fn () => $asset->delete());
 
         return true;
+    }
+
+    /**
+     * @param  array<string, string>  $stagedFiles
+     */
+    private function restoreStagedFiles(string $diskName, array $stagedFiles, int $assetId): void
+    {
+        $disk = Storage::disk($diskName);
+        $restored = true;
+
+        foreach ($stagedFiles as $originalPath => $stagedPath) {
+            try {
+                if ($disk->exists($stagedPath) && ! $disk->move($stagedPath, $originalPath)) {
+                    $restored = false;
+                    Log::critical('A media file could not be restored after its database deletion failed.', [
+                        'media_asset_id' => $assetId,
+                        'original_path' => $originalPath,
+                        'staged_path' => $stagedPath,
+                    ]);
+                }
+            } catch (Throwable $exception) {
+                $restored = false;
+                Log::critical('A media file could not be restored after its database deletion failed.', [
+                    'media_asset_id' => $assetId,
+                    'original_path' => $originalPath,
+                    'staged_path' => $stagedPath,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        if ($restored && $stagedFiles !== []) {
+            $firstStagedPath = reset($stagedFiles);
+            if (is_string($firstStagedPath)) {
+                try {
+                    if (! $disk->deleteDirectory(dirname($firstStagedPath))) {
+                        Log::warning('An empty media trash directory could not be removed.', [
+                            'media_asset_id' => $assetId,
+                        ]);
+                    }
+                } catch (Throwable $exception) {
+                    Log::warning('An empty media trash directory could not be removed.', [
+                        'media_asset_id' => $assetId,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        }
     }
 
     public function replaceReferences(MediaAsset $current, MediaAsset $replacement): bool

@@ -463,11 +463,20 @@ const uploadFile = async (formData, form, progress, onCancel, mediaInputOverride
     return asset;
 };
 
-const initializeMediaInputs = () => {
-    document.querySelectorAll('[data-media-managed], [data-media-file]').forEach((input) => {
+const initializeMediaInputs = (root = document) => {
+    const selector = '[data-media-managed], [data-media-file]';
+    const inputs = root instanceof Element && root.matches(selector)
+        ? [root]
+        : root.querySelectorAll(selector);
+
+    inputs.forEach((input) => {
+        if (input.dataset.mediaInputInitialized === 'true') return;
+        input.dataset.mediaInputInitialized = 'true';
+
         const form = input.closest('form');
         const wrapper = input.closest('[data-media-field]')
             || input.closest('[data-media-direct-video-file-control]')
+            || input.closest('[data-news-media-file-control]')
             || form;
         const preview = wrapper.querySelector('[data-media-preview]');
         const imagePreview = wrapper.querySelector('[data-media-image-preview]')
@@ -482,7 +491,25 @@ const initializeMediaInputs = () => {
 
         input.addEventListener('change', () => {
             const file = input.files?.[0];
-            if (!file) return;
+            if (!file) {
+                if (objectUrl.value) URL.revokeObjectURL(objectUrl.value);
+                objectUrl.value = null;
+                if (preview) preview.hidden = true;
+                if (imagePreview) {
+                    imagePreview.removeAttribute('src');
+                    imagePreview.hidden = true;
+                }
+                if (videoPreview) {
+                    videoPreview.pause();
+                    videoPreview.removeAttribute('src');
+                    videoPreview.load();
+                    videoPreview.hidden = true;
+                }
+                if (details) details.textContent = '';
+                if (editButton) editButton.disabled = true;
+
+                return;
+            }
 
             if (assetInput) assetInput.value = '';
             if (input.dataset.mediaEdited !== 'true') {
@@ -593,7 +620,7 @@ const initializeNewsMediaUploads = () => {
                         const percent = Math.round(fraction * 100);
                         progressBar.value = percent;
                         progressLabel.textContent = message || `Mengunggah ${file.name}`;
-                    }, (cancel) => { cancelUpload = cancel; });
+                    }, (cancel) => { cancelUpload = cancel; }, fileInput);
 
                     if (asset.type !== type) {
                         throw new Error('Jenis file yang diunggah tidak sesuai dengan jenis media.');
@@ -839,6 +866,11 @@ const initializeMediaUploads = () => {
 const initializeMedia = () => {
     initializeMediaEditor();
     initializeMediaInputs();
+    document.addEventListener('media-manager:initialize-inputs', (event) => {
+        if (event.detail instanceof Element) {
+            initializeMediaInputs(event.detail);
+        }
+    });
     initializeNewsMediaUploads();
     initializeDirectVideoSources();
     initializeMediaUploads();
