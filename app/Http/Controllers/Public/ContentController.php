@@ -112,6 +112,10 @@ class ContentController extends Controller
         }
 
         $popularArticles = (clone $newsQuery)
+            ->when(
+                $featuredArticle !== null,
+                fn (Builder $query): Builder => $query->where('id', '<>', $featuredArticle->id),
+            )
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit(3)

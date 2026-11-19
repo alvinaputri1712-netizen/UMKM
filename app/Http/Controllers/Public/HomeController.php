@@ -62,7 +62,13 @@ class HomeController extends Controller
             ->limit(3)
             ->get();
         $carouselNews = $featuredNews->concat($latestNews)->values();
-        $belowCarouselNews = collect();
+        $belowCarouselNews = (clone $latestNewsQuery)
+            ->whereNotIn(
+                'id',
+                $carouselNews->pluck('id')->all(),
+            )
+            ->limit(4)
+            ->get();
         $sidebarNews = collect();
         $newsVideos = $this->newsVideos($configuration);
         $latestActivity = $latestNews->first(fn (NewsArticle $article): bool => filled($article->image_path))

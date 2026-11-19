@@ -179,17 +179,14 @@ class PublicNewsTest extends TestCase
         $response = $this->get(route('news.index'));
 
         $response->assertOk()
-            ->assertSee('Portal Berita')
+            ->assertSee('<h1><span>Berita</span> <span>Sekolah</span></h1>', false)
+            ->assertSee('BERITA INFORMASI SEKOLAH')
             ->assertSee('SMK Islamiyah Ciputat')
-            ->assertSee('Berita Terpopuler')
-            ->assertSee('Kategori Berita')
             ->assertSee('Berita Terbaru')
             ->assertSee('Redaksi Sekolah')
             ->assertSee('/images/berita-terbaru.jpg', false)
             ->assertSee('Informasi Uji')
             ->assertSee(route('news.index', ['category' => 'Kegiatan Sekolah']), false)
-            ->assertSee('aria-label="3 berita"', false)
-            ->assertSee('aria-label="2 berita"', false)
             ->assertDontSee('Draft Tidak Tampil');
     }
 
@@ -240,7 +237,7 @@ class PublicNewsTest extends TestCase
             ->assertSee('/images/berita-utama.jpg', false)
             ->assertSee('/images/berita-satu.jpg', false)
             ->assertSee('/images/berita-dua.jpg', false)
-            ->assertSee('Portal Berita<br>SMK Islamiyah Ciputat', false)
+            ->assertSee('Berita Sekolah')
             ->assertSee('Berita Lainnya')
             ->assertSee('Berita Terkait')
             ->assertSee('Kategori Berita')

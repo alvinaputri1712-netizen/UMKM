@@ -43,9 +43,13 @@
         <div class="container news-detail__container">
             <header class="news-portal-banner">
                 <div class="news-portal-banner__copy">
-                    <span class="news-portal-banner__label">Berita Sekolah</span>
-                    <h2>Portal Berita<br>SMK Islamiyah Ciputat</h2>
-                    <p>Informasi terkini seputar kegiatan, prestasi, dan perkembangan SMK Islamiyah Ciputat.</p>
+                    <nav class="news-portal-banner__breadcrumb" aria-label="Breadcrumb">
+                        <a href="{{ route('home') }}">Beranda</a>
+                        <span aria-hidden="true">/</span>
+                        <a href="{{ route('news.index') }}">Berita</a>
+                    </nav>
+                    <h2>Berita Sekolah</h2>
+                    <p>Informasi terbaru, kegiatan, prestasi, dan perkembangan SMK Islamiyah Ciputat.</p>
                 </div>
                 @if ($newsBannerImage)
                     <figure class="news-portal-banner__image">
@@ -61,6 +65,10 @@
                 <span aria-hidden="true">›</span>
                 <span aria-current="page">{{ $article->title }}</span>
             </nav>
+            <a class="news-detail-back" href="{{ route('news.index') }}">
+                <i data-lucide="arrow-left" aria-hidden="true"></i>
+                Kembali ke daftar berita
+            </a>
 
             <div class="news-detail-layout">
                 <article class="news-detail-main">
@@ -93,13 +101,13 @@
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     aria-label="Bagikan lewat Facebook"
-                                >f</a>
+                                ><i data-lucide="facebook" aria-hidden="true"></i></a>
                                 <button
                                     class="news-share__button news-share__button--copy"
                                     type="button"
                                     data-copy-article-link="{{ route('news.show', $article->slug) }}"
                                     aria-label="Salin tautan artikel"
-                                >⧉</button>
+                                ><i data-lucide="link" aria-hidden="true"></i></button>
                                 <span class="news-share__status" data-copy-article-status role="status" aria-live="polite"></span>
                             </div>
                         </div>

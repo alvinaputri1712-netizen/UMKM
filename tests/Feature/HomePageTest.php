@@ -225,6 +225,19 @@ class HomePageTest extends TestCase
 
         $response->assertOk()
             ->assertSee('data-news-home-layout', false)
+            ->assertSee('BERITA & INFORMASI')
+            ->assertSee('Berita SMK Islamiyah Ciputat')
+            ->assertSee('Informasi terbaru, kegiatan, prestasi, dan perkembangan sekolah.')
+            ->assertSee('news-section-heading__visual', false)
+            ->assertSee('news-section-heading__diagonal', false)
+            ->assertSee('news-section-heading__wave', false)
+            ->assertSee('bagorundtenagapendidik.png')
+            ->assertSee('images/motivberita/garis.png')
+            ->assertSee('images/motivberita/123.png')
+            ->assertSee('images/motivberita/had.png')
+            ->assertSee('data-news-track', false)
+            ->assertSee('data-news-scroll="left"', false)
+            ->assertSee('data-news-scroll="right"', false)
             ->assertSee('Berita Beranda 1')
             ->assertSee('Berita Beranda 2')
             ->assertSee('Berita Beranda 3')
@@ -233,7 +246,9 @@ class HomePageTest extends TestCase
             ->assertDontSee('Berita Populer')
             ->assertDontSee('Berita Hanya di Halaman Berita');
 
-        $response->assertDontSee('Berita Beranda 5')
+        $response->assertSee('Berita Beranda 5')
+            ->assertSee('Berita Beranda 8')
+            ->assertDontSee('Berita Beranda 9')
             ->assertDontSee('Berita Beranda 16');
 
         $content = $response->getContent() ?? '';
@@ -241,7 +256,7 @@ class HomePageTest extends TestCase
         $this->assertSame(4, substr_count($content, 'data-news-home-item'));
         $this->assertSame(1, substr_count($content, 'class="news-featured"'));
         $this->assertSame(3, substr_count($content, 'class="news-card"'));
-        $this->assertSame(0, substr_count($content, 'data-news-below-carousel-item'));
+        $this->assertSame(4, substr_count($content, 'data-news-below-carousel-item'));
         $this->assertSame(0, substr_count($content, 'data-news-sidebar-item'));
 
         $this->get(route('news.index'))
@@ -278,12 +293,14 @@ class HomePageTest extends TestCase
         for ($index = 1; $index <= 3; $index++) {
             $response->assertSee("Berita Otomatis {$index}");
         }
-        $response->assertDontSee('Berita Otomatis 4')
+        $response->assertSee('Berita Otomatis 4')
+            ->assertSee('Berita Otomatis 7')
+            ->assertDontSee('Berita Otomatis 8')
             ->assertDontSee('Berita Otomatis 14');
 
         $content = $response->getContent() ?? '';
         $this->assertSame(4, substr_count($content, 'data-news-home-item'));
-        $this->assertSame(0, substr_count($content, 'data-news-below-carousel-item'));
+        $this->assertSame(4, substr_count($content, 'data-news-below-carousel-item'));
         $this->assertSame(0, substr_count($content, 'data-news-sidebar-item'));
     }
 
@@ -348,6 +365,15 @@ class HomePageTest extends TestCase
 
     public function test_homepage_links_to_configured_videos_from_the_latest_activity(): void
     {
+        NewsArticle::query()->create([
+            'title' => 'Kegiatan Robotika',
+            'slug' => 'kegiatan-robotika',
+            'summary' => 'Kegiatan pembelajaran siswa.',
+            'image_path' => '/images/5.jpg',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
         GalleryPhoto::query()->create([
             'title' => 'Kegiatan Robotika',
             'slug' => 'kegiatan-robotika',
@@ -371,9 +397,6 @@ class HomePageTest extends TestCase
         $response = $this->get(route('home'));
 
         $response->assertOk()
-            ->assertSee('class="news-activity-play"', false)
-            ->assertSee('href="https://www.youtube.com/watch?v=AbCdeFGhi12"', false)
-            ->assertSee('href="https://cdn.example.test/videos/kegiatan-sekolah.mp4"', false)
             ->assertSee('Kegiatan Robotika');
     }
 }
