@@ -1,15 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Login Admin | SMK Islamiyah Ciputat</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="icon" href="{{ asset('images/logo/logo.webp') }}" type="image/webp">
+    @vite(['resources/css/admin-app.css', 'resources/js/app.js'])
 </head>
 <body class="admin-login-body">
     <main class="admin-login-card">
-        <img src="{{ asset('images/logo/logo.PNG') }}" alt="Logo SMK Islamiyah Ciputat" class="admin-login-logo">
+        <img src="{{ asset('images/logo/logo.webp') }}" alt="Logo SMK Islamiyah Ciputat" class="admin-login-logo">
         <p class="admin-login-eyebrow">PENGELOLAAN WEBSITE</p>
         <h1>Masuk ke Admin Panel</h1>
         <p class="admin-login-description">Akun dibuat oleh Superadmin. Peran akun menentukan menu dan akses yang tersedia; peran tidak dipilih saat login.</p>
@@ -45,7 +46,9 @@
             <a href="{{ route('admin.register') }}" class="admin-login-back">Pendaftaran Superadmin pertama untuk testing</a>
         @endif
 
-        <a href="{{ route('home') }}" class="admin-login-back">← Kembali ke website</a>
+        <a href="{{ route('home') }}" class="admin-login-back">â† Kembali ke website</a>
     </main>
 </body>
 </html>
+
+

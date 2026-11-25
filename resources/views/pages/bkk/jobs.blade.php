@@ -30,6 +30,7 @@
                         src="{{ asset('images/10.jpeg') }}"
                         alt="Siswa SMK Islamiyah Ciputat berfoto bersama di lingkungan sekolah"
                         fetchpriority="high"
+                        decoding="async"
                     >
                     <svg class="bkk-jobs-hero__wave" viewBox="0 0 820 180" preserveAspectRatio="none" aria-hidden="true" focusable="false">
                         <path fill="#0B3025" d="M170 180c122-4 187-69 299-55 99 13 193 1 351-87v142H170Z"/>
@@ -143,7 +144,7 @@
                                 <article class="bkk-job-card">
                                     <div class="bkk-job-card__logo">
                                         @if ($companyImage)
-                                            <img src="{{ $companyImage }}" alt="" loading="lazy">
+                                            <img src="{{ $companyImage }}" alt="" loading="lazy" decoding="async">
                                         @elseif ($companyInitials !== '')
                                             <span aria-hidden="true">{{ $companyInitials }}</span>
                                         @else

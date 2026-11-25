@@ -16,7 +16,7 @@
     <section class="admin-card" data-bulk-root data-total-count="{{ $totalCount }}" data-category-label="{{ $typeConfig['plural'] }}">
         <form method="GET" action="{{ route('admin.teachers.index') }}" class="admin-search-form">
             <label for="content-search" class="sr-only">Cari tenaga kependidikan</label>
-            <input id="content-search" type="search" name="search" value="{{ $search }}" placeholder="Cari nama, slug, jabatan, atau kategori">
+            <input id="content-search" type="search" name="search" value="{{ $search }}" placeholder="Cari nama, jabatan, atau kategori">
             <button class="admin-button admin-button-secondary" type="submit">Cari</button>
             @if ($search !== '')
                 <a href="{{ route('admin.teachers.index') }}" class="admin-reset-search">Hapus pencarian</a>
@@ -45,7 +45,8 @@
                             <th class="admin-check-col"><input type="checkbox" data-bulk-select-page aria-label="Pilih semua di halaman"></th>
                             <th>Nama</th>
                             <th>Jabatan / Kategori</th>
-                            <th>Status</th>
+                            <th>Status Web</th>
+                            <th>Status Keaktifan</th>
                             <th>Diperbarui</th>
                             <th class="admin-table-actions">Aksi</th>
                         </tr>
@@ -59,11 +60,12 @@
                                         @if ($entry->image_path)
                                             <img src="{{ app(\App\Support\SiteConfiguration::class)->imageUrl($entry->image_path) }}" alt="" loading="lazy">
                                         @endif
-                                        <span><strong>{{ $entry->title }}</strong><small>{{ $entry->slug ?? '—' }}</small></span>
+                                        <span><strong>{{ $entry->title }}</strong></span>
                                     </div>
                                 </td>
                                 <td>{{ $entry->position ?: ($entry->category ?: $typeConfig['singular']) }}</td>
                                 <td><span class="admin-status admin-status-{{ $entry->status }}">{{ $entry->status === 'published' ? 'Published' : 'Draft' }}</span></td>
+                                <td><span class="admin-status admin-status-employment-{{ $entry->employment_status ?? 'active' }}">{{ $entry->employmentStatusLabel() }}</span></td>
                                 <td>{{ $entry->updated_at?->format('d M Y') }}</td>
                                 <td class="admin-table-actions">
                                     <div class="admin-row-actions">
@@ -73,7 +75,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6"><div class="admin-empty-state">Belum ada data tenaga kependidikan{{ $search !== '' ? ' yang cocok dengan pencarian.' : '.' }}</div></td></tr>
+                            <tr><td colspan="7"><div class="admin-empty-state">Belum ada data tenaga kependidikan{{ $search !== '' ? ' yang cocok dengan pencarian.' : '.' }}</div></td></tr>
                         @endforelse
                     </tbody>
                 </table>

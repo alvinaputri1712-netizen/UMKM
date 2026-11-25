@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -218,19 +219,21 @@ class ContentEntryController extends Controller
                 ),
             ]);
         } elseif ($typeConfig['type'] === 'teacher') {
-            $baseSlug = Str::slug($request->input('title', 'guru'));
             $request->merge([
-                'slug' => filled($request->input('slug')) ? Str::slug($request->input('slug')) : ($baseSlug ?: 'guru-'.$entry->id),
+                'slug' => Str::slug($entry->slug ?: (Str::slug($request->input('title', 'guru')) ?: 'guru-'.$entry->id)),
                 'category' => $request->input('category') ?: 'Tenaga Pendidik',
                 'status' => $request->input('status', 'published'),
             ]);
         } else {
             $request->merge([
-                'slug' => filled($request->input('slug'))
-                    ? Str::slug($request->input('slug'))
-                    : Str::slug($request->input('title', '')),
+                'slug' => Str::slug($entry->slug ?: Str::slug($request->input('title', ''))),
             ]);
         }
+
+        $request->merge([
+            'sort_order' => $request->input('sort_order', $entry->sort_order ?? 0),
+            'published_at' => $request->input('published_at', $entry->published_at?->format('Y-m-d\TH:i')),
+        ]);
 
         $validated = $request->validate(
             $this->rules($request, $typeConfig, $entry),
@@ -617,24 +620,21 @@ class ContentEntryController extends Controller
             'metadata' => $metadata,
         ];
 
+        $attributes['published_at'] = filled($attributes['published_at'] ?? null)
+            ? Carbon::parse($attributes['published_at'])
+            : null;
+
         if ($typeConfig['type'] !== 'news') {
             $attributes['sort_order'] = (int) ($validated['sort_order'] ?? 0);
-        }
-
-        if (
-            $typeConfig['type'] === 'news'
-            && ($attributes['status'] ?? null) === 'published'
-            && blank($attributes['published_at'] ?? null)
-        ) {
-            $attributes['published_at'] = now();
         }
 
         if ($typeConfig['type'] === 'teacher') {
             $attributes['category'] = $attributes['category'] ?: 'Tenaga Pendidik';
             $attributes['status'] = $attributes['status'] ?: 'published';
-            if ($attributes['status'] === 'published' && blank($attributes['published_at'] ?? null)) {
-                $attributes['published_at'] = now();
-            }
+        }
+
+        if (($attributes['status'] ?? null) === 'published' && blank($attributes['published_at'] ?? null)) {
+            $attributes['published_at'] = now();
         }
 
         return $attributes;

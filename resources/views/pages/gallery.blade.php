@@ -12,7 +12,7 @@
                     @foreach ($photos as $photo)
                         <figure class="public-gallery-card overflow-hidden rounded-xl bg-white">
                             @if ($photo->image_path)
-                                <img class="aspect-[4/3] w-full object-cover" src="{{ $siteConfiguration->imageUrl($photo->image_path) }}" alt="{{ $photo->title }}" loading="lazy">
+                                <img class="aspect-[4/3] w-full object-cover" src="{{ $siteConfiguration->imageUrl($photo->image_path) }}" alt="{{ $photo->title }}" loading="lazy" decoding="async">
                             @endif
                             <figcaption class="p-4">
                                 <h2 class="font-semibold text-[#103526]">{{ $photo->title }}</h2>

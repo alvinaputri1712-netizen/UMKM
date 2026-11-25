@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -6,7 +6,8 @@
     <meta name="robots" content="noindex,nofollow">
     <meta name="theme-color" content="#101b35">
     <title>Superadmin Berhasil Dibuat | SMK Islamiyah Ciputat</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="icon" href="{{ asset('images/logo/logo.webp') }}" type="image/webp">
+    @vite(['resources/css/admin-app.css', 'resources/js/app.js'])
 </head>
 <body class="setup-body setup-body-dark">
     <main class="setup-success-page">
@@ -14,8 +15,8 @@
         <div class="setup-welcome-glow setup-welcome-glow-one" aria-hidden="true"></div>
 
         <a href="{{ route('home') }}" class="setup-brand setup-brand-welcome setup-success-brand">
-            <img src="{{ asset('images/logo/logo.PNG') }}" alt="Logo SMK Islamiyah Ciputat">
-            <span><strong>SMK ISLAMIYAH</strong><small>CIPUTAT · SISTEM INFORMASI</small></span>
+            <img src="{{ asset('images/logo/logo.webp') }}" alt="Logo SMK Islamiyah Ciputat">
+            <span><strong>SMK ISLAMIYAH</strong><small>CIPUTAT Â· SISTEM INFORMASI</small></span>
         </a>
 
         <section class="setup-success-card" aria-labelledby="setup-success-title">
@@ -34,8 +35,10 @@
                 <i data-lucide="arrow-right" aria-hidden="true"></i>
             </a>
 
-            <p class="setup-success-footer">SMK ISLAMIYAH CIPUTAT <span>·</span> SECURE ADMINISTRATION</p>
+            <p class="setup-success-footer">SMK ISLAMIYAH CIPUTAT <span>Â·</span> SECURE ADMINISTRATION</p>
         </section>
     </main>
 </body>
 </html>
+
+

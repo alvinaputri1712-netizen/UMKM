@@ -22,7 +22,7 @@
     <section class="admin-card" data-bulk-root data-total-count="{{ $totalCount }}" data-category-label="{{ $typeConfig['plural'] }}">
         <form method="GET" action="{{ route('admin.content.index', $type) }}" class="admin-search-form">
             <label for="content-search" class="sr-only">Cari konten</label>
-            <input id="content-search" type="search" name="search" value="{{ $search }}" placeholder="Cari judul, slug, atau kategori">
+            <input id="content-search" type="search" name="search" value="{{ $search }}" placeholder="Cari judul atau kategori">
             <button class="admin-button admin-button-secondary" type="submit">Cari</button>
             @if ($search !== '')
                 <a href="{{ route('admin.content.index', $type) }}" class="admin-reset-search">Hapus pencarian</a>
@@ -68,7 +68,7 @@
                                         @if ($entry->image_path)
                                             <img src="{{ app(\App\Support\SiteConfiguration::class)->imageUrl($entry->image_path) }}" alt="" loading="lazy">
                                         @endif
-                                        <span><strong>{{ $entry->title }}</strong><small>{{ $entry->slug ?? '—' }}</small></span>
+                                        <span><strong>{{ $entry->title }}</strong></span>
                                     </div>
                                 </td>
                                 <td>{{ $entry->category ?: $typeConfig['singular'] }}</td>

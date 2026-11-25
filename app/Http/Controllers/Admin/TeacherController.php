@@ -9,6 +9,7 @@ use App\Support\PublicImageStorage;
 use App\Support\TeacherPhotoFocus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -250,12 +251,15 @@ class TeacherController extends Controller
     private function normalizeRequest(Request $request, ?Teacher $entry = null): void
     {
         $baseSlug = Str::slug($request->input('title', 'guru'));
+        $defaultSlug = $baseSlug ?: 'guru-'.($entry?->id ?? Str::random(6));
+
         $request->merge([
-            'slug' => filled($request->input('slug'))
-                ? Str::slug($request->input('slug'))
-                : ($baseSlug ?: 'guru-'.($entry?->id ?? Str::random(6))),
+            'slug' => Str::slug($entry?->slug ?: $defaultSlug),
             'category' => $request->input('category') ?: 'Tenaga Pendidik',
-            'status' => $request->input('status', 'published'),
+            'status' => $request->input('status', $entry?->status ?? 'published'),
+            'employment_status' => $request->input('employment_status', $entry?->employment_status ?? 'active'),
+            'sort_order' => $request->input('sort_order', $entry?->sort_order ?? 0),
+            'published_at' => $request->input('published_at', $entry?->published_at?->format('Y-m-d\TH:i')),
         ]);
     }
 
@@ -281,6 +285,7 @@ class TeacherController extends Controller
             'focal_point_x' => ['nullable', 'numeric', 'between:0,100'],
             'focal_point_y' => ['nullable', 'numeric', 'between:0,100'],
             'status' => ['required', Rule::in(['draft', 'published'])],
+            'employment_status' => ['required', Rule::in(['active', 'inactive'])],
             'sort_order' => ['nullable', 'integer', 'between:-10000,10000'],
             'published_at' => ['nullable', 'date'],
             'metadata.position' => ['required', 'string', 'max:255'],
@@ -350,8 +355,11 @@ class TeacherController extends Controller
             'category' => $validated['category'] ?? 'Tenaga Pendidik',
             'summary' => $validated['summary'] ?? null,
             'status' => $validated['status'],
+            'employment_status' => $validated['employment_status'],
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
-            'published_at' => $validated['published_at'] ?? null,
+            'published_at' => filled($validated['published_at'] ?? null)
+                ? Carbon::parse($validated['published_at'])
+                : null,
         ];
 
         if ($attributes['status'] === 'published' && blank($attributes['published_at'])) {

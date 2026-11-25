@@ -8,7 +8,7 @@
     <section
         class="teacher-section section educators-page public-page--teachers"
         aria-labelledby="educators-page-title"
-        style="--educator-motif-primary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik1.png') }}'); --educator-motif-secondary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik2.png') }}')"
+        style="--educator-motif-primary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik1.webp') }}'); --educator-motif-secondary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik2.webp') }}')"
     >
         <div class="container educators-page-container">
             <div class="educators-page-hero">
@@ -26,9 +26,10 @@
                 </div>
                 <figure class="educators-page-hero-image">
                     <img
-                        src="{{ asset('images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png') }}"
+                        src="{{ asset('images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp') }}"
                         alt="Gedung SMK Islamiyah Ciputat"
                         fetchpriority="high"
+                        decoding="async"
                     >
                 </figure>
             </div>
@@ -37,7 +38,7 @@
                 <nav class="educators-page-filters" aria-label="Filter kategori tenaga pendidik">
                     <a
                         class="{{ $activeCategory === 'all' ? 'is-active' : '' }}"
-                        href="{{ route('teachers', ['category' => 'all', 'search' => $searchTerm]) }}"
+                        href="{{ route('teachers', ['category' => 'all', 'employment_status' => $activeEmploymentStatus, 'search' => $searchTerm]) }}"
                         @if ($activeCategory === 'all') aria-current="page" @endif
                     >
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -47,7 +48,7 @@
                     </a>
                     <a
                         class="{{ $activeCategory === 'guru' ? 'is-active' : '' }}"
-                        href="{{ route('teachers', ['category' => 'guru', 'search' => $searchTerm]) }}"
+                        href="{{ route('teachers', ['category' => 'guru', 'employment_status' => $activeEmploymentStatus, 'search' => $searchTerm]) }}"
                         @if ($activeCategory === 'guru') aria-current="page" @endif
                     >
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -58,7 +59,7 @@
                     </a>
                     <a
                         class="{{ $activeCategory === 'kependidikan' ? 'is-active' : '' }}"
-                        href="{{ route('teachers', ['category' => 'kependidikan', 'search' => $searchTerm]) }}"
+                        href="{{ route('teachers', ['category' => 'kependidikan', 'employment_status' => $activeEmploymentStatus, 'search' => $searchTerm]) }}"
                         @if ($activeCategory === 'kependidikan') aria-current="page" @endif
                     >
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -68,8 +69,27 @@
                     </a>
                 </nav>
 
+                <nav class="educators-page-filters" aria-label="Filter status keaktifan tenaga pendidik">
+                    <a
+                        class="{{ $activeEmploymentStatus === 'all' ? 'is-active' : '' }}"
+                        href="{{ route('teachers', ['category' => $activeCategory, 'employment_status' => 'all', 'search' => $searchTerm]) }}"
+                        @if ($activeEmploymentStatus === 'all') aria-current="page" @endif
+                    >Semua Status</a>
+                    <a
+                        class="{{ $activeEmploymentStatus === 'active' ? 'is-active' : '' }}"
+                        href="{{ route('teachers', ['category' => $activeCategory, 'employment_status' => 'active', 'search' => $searchTerm]) }}"
+                        @if ($activeEmploymentStatus === 'active') aria-current="page" @endif
+                    >Masih Aktif</a>
+                    <a
+                        class="{{ $activeEmploymentStatus === 'inactive' ? 'is-active' : '' }}"
+                        href="{{ route('teachers', ['category' => $activeCategory, 'employment_status' => 'inactive', 'search' => $searchTerm]) }}"
+                        @if ($activeEmploymentStatus === 'inactive') aria-current="page" @endif
+                    >Sudah Tidak Aktif</a>
+                </nav>
+
                 <form class="educators-page-search" method="GET" action="{{ route('teachers') }}" role="search">
                     <input type="hidden" name="category" value="{{ $activeCategory }}">
+                    <input type="hidden" name="employment_status" value="{{ $activeEmploymentStatus }}">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.8"/>
                         <path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -86,9 +106,9 @@
                 </form>
             </div>
 
-            @if ($errors->has('category') || $errors->has('search'))
+            @if ($errors->has('category') || $errors->has('employment_status') || $errors->has('search'))
                 <p class="educators-page-filter-error" role="alert">
-                    {{ $errors->first('category') ?: $errors->first('search') }}
+                    {{ $errors->first('category') ?: $errors->first('employment_status') ?: $errors->first('search') }}
                 </p>
             @endif
 

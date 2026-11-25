@@ -1,0 +1,8 @@
+﻿@import "tailwindcss";
+@plugin "daisyui" {
+  logs: false;
+  exclude: steps, avatar, checkbox, badge, button, mask, navbar, link, drawer, kbd, fieldset, footer, calendar, dock, fileinput, stat, countdown, filter, input, chat, tooltip, card, hovergallery, fab, status, validator, list, textrotate, swap, skeleton, select, divider, tab, carousel, menu, dropdown, loading, hero, collapse, label, hover3d, mockup, megamenu, breadcrumbs, modal, alert, stack, indicator, toast, radio, otp, rating, diff, range, table, progress, radialprogress, timeline, toggle, aura, textarea;
+}
+
+@import "./base.css";
+@import "./admin.css";

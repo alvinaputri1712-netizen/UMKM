@@ -53,7 +53,7 @@
                 </div>
                 @if ($newsBannerImage)
                     <figure class="news-portal-banner__image">
-                        <img src="{{ $newsBannerImage }}" alt="{{ $newsBannerAlt }}" fetchpriority="high">
+                        <img src="{{ $newsBannerImage }}" alt="{{ $newsBannerAlt }}" fetchpriority="high" decoding="async">
                     </figure>
                 @endif
             </header>
@@ -116,7 +116,7 @@
                     @if ($articlePrimaryMedia)
                         <figure class="news-article-cover">
                             @if ($articlePrimaryMedia['type'] === 'image')
-                                <img src="{{ $siteConfiguration->imageUrl($articlePrimaryMedia['src']) }}" alt="Foto {{ $article->title }}" fetchpriority="high">
+                                <img src="{{ $siteConfiguration->imageUrl($articlePrimaryMedia['src']) }}" alt="Foto {{ $article->title }}" fetchpriority="high" decoding="async">
                             @elseif ($articlePrimaryMedia['youtube_id'])
                                 <iframe
                                     src="https://www.youtube-nocookie.com/embed/{{ $articlePrimaryMedia['youtube_id'] }}"
@@ -147,7 +147,7 @@
                             @foreach (array_slice($articleMediaItems, 1) as $media)
                                 <figure>
                                     @if ($media['type'] === 'image')
-                                        <img src="{{ $siteConfiguration->imageUrl($media['src']) }}" alt="Foto {{ $article->title }} {{ $loop->iteration }}" loading="lazy">
+                                        <img src="{{ $siteConfiguration->imageUrl($media['src']) }}" alt="Foto {{ $article->title }} {{ $loop->iteration }}" loading="lazy" decoding="async">
                                     @elseif ($media['youtube_id'])
                                         <iframe
                                             src="https://www.youtube-nocookie.com/embed/{{ $media['youtube_id'] }}"
@@ -182,6 +182,7 @@
                                                     src="{{ $siteConfiguration->imageUrl($relatedMediaPreview['type'] === 'image' ? $relatedMediaPreview['src'] : $relatedMediaPreview['poster']) }}"
                                                     alt="{{ $relatedMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $relatedArticle->title }}"
                                                     loading="lazy"
+                                                    decoding="async"
                                                 >
                                             @else
                                                 <span class="news-related-card__placeholder" aria-hidden="true"></span>
@@ -215,6 +216,7 @@
                                                     src="{{ $siteConfiguration->imageUrl($relatedMediaPreview['type'] === 'image' ? $relatedMediaPreview['src'] : $relatedMediaPreview['poster']) }}"
                                                     alt=""
                                                     loading="lazy"
+                                                    decoding="async"
                                                 >
                                             @else
                                                 <span class="news-detail-related-item__placeholder" aria-hidden="true"></span>

@@ -20,6 +20,7 @@
                     src="{{ $photoUrl }}"
                     alt=""
                     loading="{{ $loading }}"
+                    decoding="async"
                     onload="this.closest('.staff-id-photo').classList.toggle('is-landscape', this.naturalWidth > this.naturalHeight * 1.15)"
                     onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible')"
                 >

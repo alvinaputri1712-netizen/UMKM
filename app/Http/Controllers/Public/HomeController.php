@@ -67,8 +67,7 @@ class HomeController extends Controller
                 'id',
                 $carouselNews->pluck('id')->all(),
             )
-            ->limit(4)
-            ->get();
+            ->paginate(8, ['*'], 'home_news_page');
         $sidebarNews = collect();
         $newsVideos = $this->newsVideos($configuration);
         $latestActivity = $latestNews->first(fn (NewsArticle $article): bool => filled($article->image_path))

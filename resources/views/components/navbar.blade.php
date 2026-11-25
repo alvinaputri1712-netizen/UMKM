@@ -11,7 +11,7 @@
     <div class="container nav-wrapper">
         <a href="{{ route('home') }}" class="brand">
             @if ($logoUrl)
-                <img class="brand-logo" src="{{ $logoUrl }}" alt="Logo {{ $siteSettings['identity.school_name'] }}">
+                <img class="brand-logo" src="{{ $logoUrl }}" alt="Logo {{ $siteSettings['identity.school_name'] }}" decoding="async">
             @else
                 <span class="brand-symbol" aria-hidden="true">SMK</span>
             @endif

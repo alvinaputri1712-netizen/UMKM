@@ -119,6 +119,7 @@
                                                         src="{{ $siteConfiguration->imageUrl($featuredMediaPreview['type'] === 'image' ? $featuredMediaPreview['src'] : $featuredMediaPreview['poster']) }}"
                                                         alt="{{ $featuredMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $featuredArticle->title }}"
                                                         fetchpriority="high"
+                                                        decoding="async"
                                                         data-news-image
                                                     >
                                                 </figure>
@@ -179,6 +180,7 @@
                                                                 src="{{ $siteConfiguration->imageUrl($popularMediaPreview['type'] === 'image' ? $popularMediaPreview['src'] : $popularMediaPreview['poster']) }}"
                                                                 alt="{{ $popularMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
                                                                 loading="lazy"
+                                                                decoding="async"
                                                             >
                                                         @else
                                                             <span class="news-popular-item__placeholder" aria-hidden="true">
@@ -221,6 +223,7 @@
                                                     src="{{ $siteConfiguration->imageUrl($videoMedia['poster']) }}"
                                                     alt=""
                                                     loading="lazy"
+                                                    decoding="async"
                                                 >
                                             @else
                                                 <span class="news-video-strip__placeholder" aria-hidden="true">
@@ -262,6 +265,7 @@
                                                                 src="{{ $siteConfiguration->imageUrl($articleMediaPreview['type'] === 'image' ? $articleMediaPreview['src'] : $articleMediaPreview['poster']) }}"
                                                                 alt="{{ $articleMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
                                                                 loading="lazy"
+                                                                decoding="async"
                                                                 data-news-image
                                                             >
                                                             @if ($article->category)

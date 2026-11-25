@@ -16,6 +16,7 @@ class Teacher extends Model
         'summary',
         'image_path',
         'status',
+        'employment_status',
         'sort_order',
         'published_at',
     ];
@@ -35,6 +36,16 @@ class Teacher extends Model
                 $query->whereNull('published_at')
                     ->orWhere('published_at', '<=', now());
             });
+    }
+
+    public function isActive(): bool
+    {
+        return $this->employment_status !== 'inactive';
+    }
+
+    public function employmentStatusLabel(): string
+    {
+        return $this->isActive() ? 'Masih Aktif' : 'Sudah Tidak Aktif';
     }
 
     public function getTitleAttribute(): string

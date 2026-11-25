@@ -462,6 +462,16 @@
     color: #68746d;
 }
 
+.admin-status-employment-active {
+    background: #e8f1eb;
+    color: #176b4a;
+}
+
+.admin-status-employment-inactive {
+    background: #f5efe6;
+    color: #8a5a2b;
+}
+
 .admin-activity-item {
     display: flex;
     gap: 10px;
@@ -3013,6 +3023,16 @@
 .admin-status-draft {
     background: #f1f3f6;
     color: #64748b;
+}
+
+.admin-status-employment-active {
+    background: #edf5f1;
+    color: #34745d;
+}
+
+.admin-status-employment-inactive {
+    background: #f7efe3;
+    color: #8a5a2b;
 }
 
 .admin-activity-table-wrap {

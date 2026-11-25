@@ -33,14 +33,7 @@
                 @error('title')<small class="admin-field-error">{{ $message }}</small>@enderror
             </div>
 
-            <div class="admin-field">
-                <label for="slug">Slug URL</label>
-                <input id="slug" name="slug" type="text" value="{{ old('slug', $entry->slug) }}" maxlength="180">
-                <small>Dibuat otomatis dari nama jika dikosongkan.</small>
-                @error('slug')<small class="admin-field-error">{{ $message }}</small>@enderror
-            </div>
-
-            <div class="admin-field">
+                       <div class="admin-field">
                 <label for="metadata-position">Jabatan / Mata Pelajaran <span>*</span></label>
                 <input id="metadata-position" name="metadata[position]" type="text" value="{{ old('metadata.position', data_get($entry->metadata, 'position', $entry->position ?? null)) }}" placeholder="Contoh: Guru Matematika / Kepala Lab" maxlength="255" required>
                 <small>Mata pelajaran yang diampu atau jabatan di sekolah.</small>
@@ -97,16 +90,15 @@
             </div>
 
             <div class="admin-field">
-                <label for="sort_order">Urutan Tampil (Opsional)</label>
-                <input id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $entry->sort_order ?? 0) }}" placeholder="0">
-                @error('sort_order')<small class="admin-field-error">{{ $message }}</small>@enderror
+                <label for="employment_status">Status Keaktifan <span>*</span></label>
+                <select id="employment_status" name="employment_status" required>
+                    <option value="active" @selected(old('employment_status', $entry->employment_status ?? 'active') === 'active')>Masih Aktif</option>
+                    <option value="inactive" @selected(old('employment_status', $entry->employment_status) === 'inactive')>Sudah Tidak Aktif</option>
+                </select>
+                <small>Status ini ditampilkan di website sebagai keterangan keaktifan tenaga pendidik.</small>
+                @error('employment_status')<small class="admin-field-error">{{ $message }}</small>@enderror
             </div>
 
-            <div class="admin-field">
-                <label for="published_at">Tanggal publikasi</label>
-                <input id="published_at" name="published_at" type="datetime-local" value="{{ old('published_at', $entry->published_at?->format('Y-m-d\TH:i')) }}">
-                @error('published_at')<small class="admin-field-error">{{ $message }}</small>@enderror
-            </div>
         </div>
 
         <div class="admin-form-actions">
@@ -116,21 +108,7 @@
     </form>
 
     <script>
-        const titleInput = document.querySelector('#title');
-        const slugInput = document.querySelector('#slug');
         const focusControls = document.querySelector('[data-photo-focus-controls]');
-
-        if (titleInput && slugInput && !slugInput.value) {
-            titleInput.addEventListener('input', () => {
-                slugInput.value = titleInput.value
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '')
-                    .toLowerCase()
-                    .trim()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/^-|-$/g, '');
-            });
-        }
 
         if (focusControls) {
             const focusX = focusControls.querySelector('[data-focus-axis="x"]');

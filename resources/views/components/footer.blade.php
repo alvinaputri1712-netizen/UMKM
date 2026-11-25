@@ -5,7 +5,7 @@
             <div class="footer-brand footer-column footer-column--brand">
                 <a href="{{ route('home') }}" class="brand" aria-label="Beranda">
                     @if ($logoUrl)
-                        <img class="brand-logo" src="{{ $logoUrl }}" alt="Logo {{ $siteSettings['identity.school_name'] }}">
+                        <img class="brand-logo" src="{{ $logoUrl }}" alt="Logo {{ $siteSettings['identity.school_name'] }}" loading="lazy" decoding="async">
                     @endif
 
                     <span class="brand-text">

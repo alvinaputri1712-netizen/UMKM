@@ -26,11 +26,11 @@ class PublicSiteContentSeeder extends Seeder
         $settings = array_replace(config('site-content.defaults', []), [
             'identity.school_name' => 'SMK Islamiyah',
             'identity.location' => 'Ciputat, Tangerang Selatan',
-            'identity.logo' => '/images/logo/logo.PNG',
+            'identity.logo' => '/images/logo/logo.webp',
             'home.hero.title' => 'Belajar, Berkarya, dan Menyiapkan Masa Depan',
             'home.hero.description' => 'Kenali lingkungan belajar, program keahlian, dan informasi resmi SMK Islamiyah Ciputat.',
             'home.hero.slogan' => 'Temukan bidang yang sesuai dengan minatmu.',
-            'home.hero.image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png',
+            'home.hero.image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp',
             'home.hero.image_alt' => 'Gedung SMK Islamiyah Ciputat',
             'home.hero.badge' => 'Ciputat, Tangerang Selatan',
             'home.hero.student_count' => '',
@@ -54,7 +54,7 @@ class PublicSiteContentSeeder extends Seeder
             'home.news.video_2' => '',
             'home.bkk.heading' => 'Informasi Karier dan Tracer Study',
             'home.bkk.description' => 'Informasi layanan BKK dan peluang kerja yang telah dikonfirmasi akan ditampilkan di halaman ini.',
-            'home.bkk.image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png',
+            'home.bkk.image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp',
             'home.admissions.year' => '',
             'home.admissions.heading' => 'Informasi Penerimaan Peserta Didik Baru',
             'home.admissions.description' => 'Persyaratan dan jadwal resmi akan diperbarui melalui halaman SPMB.',
@@ -64,7 +64,7 @@ class PublicSiteContentSeeder extends Seeder
             'about.history' => '',
             'about.vision' => '',
             'about.mission' => '',
-            'about.image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png',
+            'about.image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp',
             'teachers.title' => 'Tenaga Kependidikan',
             'teachers.description' => 'Profil tenaga pendidik akan ditampilkan setelah data resmi dilengkapi.',
             'bkk.title' => 'Informasi Lowongan Kerja',
@@ -87,7 +87,7 @@ class PublicSiteContentSeeder extends Seeder
             'seo.title' => 'SMK Islamiyah Ciputat',
             'seo.description' => 'Informasi program keahlian, tenaga kependidikan, kegiatan, dan layanan SMK Islamiyah Ciputat.',
             'seo.keywords' => 'SMK Islamiyah Ciputat, sekolah kejuruan, Ciputat',
-            'seo.og_image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png',
+            'seo.og_image' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp',
         ]);
 
         foreach ($settings as $key => $value) {
@@ -222,7 +222,7 @@ class PublicSiteContentSeeder extends Seeder
                 'title' => 'Gedung SMK Islamiyah Ciputat',
                 'slug' => 'gedung-smk-islamiyah-ciputat',
                 'summary' => 'Tampak gedung SMK Islamiyah Ciputat.',
-                'image_path' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png',
+                'image_path' => '/images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp',
                 'sort_order' => 2,
             ],
         ];

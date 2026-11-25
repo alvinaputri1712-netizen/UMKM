@@ -88,13 +88,7 @@
                     @error('status')<small class="admin-field-error">{{ $message }}</small>@enderror
                 </div>
 
-                <div class="admin-field">
-                    <label for="sort_order">Urutan Tampil (Opsional)</label>
-                    <input id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $entry->sort_order ?? 0) }}" placeholder="0">
-                    <small>Nomor urutan (angka lebih kecil muncul lebih awal).</small>
-                    @error('sort_order')<small class="admin-field-error">{{ $message }}</small>@enderror
-                </div>
-            </div>
+                       </div>
         @elseif ($typeConfig['type'] === 'program')
             <div class="admin-form-grid">
                 <div class="admin-field admin-field-full">
@@ -173,16 +167,7 @@
                     @error('title')<small class="admin-field-error">{{ $message }}</small>@enderror
                 </div>
 
-                @if ($typeConfig['type'] !== 'principal_welcome')
-                    <div class="admin-field">
-                        <label for="slug">Slug URL</label>
-                        <input id="slug" name="slug" type="text" value="{{ old('slug', $entry->slug) }}" maxlength="180">
-                        <small>Dibuat otomatis dari judul jika dikosongkan.</small>
-                        @error('slug')<small class="admin-field-error">{{ $message }}</small>@enderror
-                    </div>
-                @endif
-
-                <div class="admin-field">
+                           <div class="admin-field">
                     <label for="category">{{ $typeConfig['category_label'] ?? 'Kategori' }}</label>
                     <input id="category" name="category" type="text" value="{{ old('category', $entry->category) }}" maxlength="100">
                     @error('category')<small class="admin-field-error">{{ $message }}</small>@enderror
@@ -399,20 +384,6 @@
 
                 @if ($typeConfig['type'] !== 'principal_welcome')
                     @if ($typeConfig['type'] !== 'news')
-                        <div class="admin-field">
-                            <label for="sort_order">Urutan tampil</label>
-                            <input id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $entry->sort_order ?? 0) }}">
-                            @error('sort_order')<small class="admin-field-error">{{ $message }}</small>@enderror
-                        </div>
-                    @endif
-
-                    <div class="admin-field">
-                        <label for="published_at">Tanggal publikasi</label>
-                        <input id="published_at" name="published_at" type="datetime-local" min="1970-01-02T00:00" max="2038-01-18T23:59" value="{{ old('published_at', $entry->published_at?->format('Y-m-d\TH:i')) }}">
-                        @error('published_at')<small class="admin-field-error">{{ $message }}</small>@enderror
-                    </div>
-
-                    @if ($typeConfig['type'] !== 'news')
                         <label class="admin-checkbox-label admin-field">
                             <input type="hidden" name="featured" value="0">
                             <input type="checkbox" name="featured" value="1" @checked(old('featured', $entry->featured))>
@@ -441,20 +412,4 @@
         </div>
     </form>
 
-    <script>
-        const titleInput = document.querySelector('#title');
-        const slugInput = document.querySelector('#slug');
-
-        if (titleInput && slugInput && !slugInput.value) {
-            titleInput.addEventListener('input', () => {
-                slugInput.value = titleInput.value
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '')
-                    .toLowerCase()
-                    .trim()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/^-|-$/g, '');
-            });
-        }
-    </script>
 @endsection

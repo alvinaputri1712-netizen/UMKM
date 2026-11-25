@@ -541,7 +541,7 @@ class CmsAdminTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.content.update', ['type' => 'news', 'entry' => $article]), [
                 'title' => 'Berita Sinkron Diperbarui',
-                'slug' => 'berita-sinkron-diperbarui',
+                'slug' => $article->slug,
                 'summary' => 'Ringkasan berita terbaru.',
                 'body' => 'Isi berita terbaru.',
                 'category' => 'Prestasi',
@@ -606,8 +606,8 @@ class CmsAdminTest extends TestCase
             ->assertSee('Redaksi Sekolah')
             ->assertSee('/images/galeri-berita.jpg', false)
             ->assertSee($draftImagePath, false);
-        $this->get(route('news.show', 'berita-sinkron'))
-            ->assertNotFound();
+        $this->get(route('news.show', $article->slug))
+            ->assertOk();
 
         $this->actingAs($admin, 'admin')
             ->delete(route('admin.content.destroy', ['type' => 'news', 'entry' => $article]))
@@ -621,7 +621,7 @@ class CmsAdminTest extends TestCase
         ]);
         $this->get(route('home'))->assertOk()->assertDontSee('Berita Sinkron Diperbarui');
         $this->get(route('news.index'))->assertOk()->assertDontSee('Berita Sinkron Diperbarui');
-        $this->get(route('news.show', 'berita-sinkron-diperbarui'))->assertNotFound();
+        $this->get(route('news.show', 'berita-sinkron'))->assertNotFound();
     }
 
     public function test_deleting_news_preserves_a_photo_still_used_by_another_article(): void
@@ -1750,7 +1750,6 @@ class CmsAdminTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->put(route('admin.teachers.update', $teacher), [
                 'title' => 'Guru Uji Edit',
-                'slug' => 'guru-uji-edit',
                 'summary' => 'Profil diperbarui.',
                 'status' => 'published',
                 'metadata' => [
@@ -1763,7 +1762,7 @@ class CmsAdminTest extends TestCase
         $this->assertDatabaseHas('teachers', [
             'id' => $teacher->id,
             'name' => 'Guru Uji Edit',
-            'slug' => 'guru-uji-edit',
+            'slug' => 'guru-uji',
         ]);
 
         $this->get(route('teachers'))
@@ -2018,10 +2017,9 @@ class CmsAdminTest extends TestCase
         $this->actingAs($admin, 'admin')
             ->post(route('admin.teachers.store'), $this->teacherPayload([
                 'title' => 'Guru Sama',
-                'slug' => 'guru-sama-beda',
                 'metadata' => ['position' => 'Guru Matematika', 'education' => null],
             ]))
-            ->assertSessionHasErrors('title');
+            ->assertSessionHasErrors('slug');
 
         $this->assertSame(1, Teacher::query()->count());
     }
@@ -2054,6 +2052,73 @@ class CmsAdminTest extends TestCase
             ->assertDontSee('Guru 1')
             ->assertDontSee('Guru 2')
             ->assertDontSee('Guru 3');
+    }
+
+    public function test_admin_can_set_teacher_employment_status_and_it_is_shown_in_admin_and_public(): void
+    {
+        $admin = $this->createAdmin();
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.teachers.store'), $this->teacherPayload([
+                'title' => 'Guru Aktif',
+                'slug' => 'guru-aktif',
+                'employment_status' => 'active',
+            ]))
+            ->assertRedirect(route('admin.teachers.index'));
+
+        $this->actingAs($admin, 'admin')
+            ->post(route('admin.teachers.store'), $this->teacherPayload([
+                'title' => 'Guru Tidak Aktif',
+                'slug' => 'guru-tidak-aktif',
+                'employment_status' => 'inactive',
+                'metadata' => ['position' => 'Guru Sejarah', 'education' => 'S1'],
+            ]))
+            ->assertRedirect(route('admin.teachers.index'));
+
+        $this->assertDatabaseHas('teachers', ['slug' => 'guru-aktif', 'employment_status' => 'active']);
+        $this->assertDatabaseHas('teachers', ['slug' => 'guru-tidak-aktif', 'employment_status' => 'inactive']);
+
+        $this->actingAs($admin, 'admin')
+            ->get(route('admin.teachers.index'))
+            ->assertOk()
+            ->assertSee('Masih Aktif')
+            ->assertSee('Sudah Tidak Aktif');
+
+        $this->get(route('teachers'))
+            ->assertOk()
+            ->assertSee('Guru Aktif')
+            ->assertSee('Guru Tidak Aktif')
+            ->assertSee('Masih Aktif')
+            ->assertSee('Sudah Tidak Aktif');
+    }
+
+    public function test_public_teacher_directory_filters_by_employment_status(): void
+    {
+        $activeTeacher = $this->createTeacher([
+            'name' => 'Guru Masih Aktif',
+            'slug' => 'guru-masih-aktif',
+            'employment_status' => 'active',
+        ]);
+        $inactiveTeacher = $this->createTeacher([
+            'name' => 'Guru Sudah Tidak Aktif',
+            'slug' => 'guru-sudah-tidak-aktif',
+            'employment_status' => 'inactive',
+        ]);
+
+        $this->get(route('teachers', ['employment_status' => 'active']))
+            ->assertOk()
+            ->assertSee($activeTeacher->name)
+            ->assertDontSee($inactiveTeacher->name);
+
+        $this->get(route('teachers', ['employment_status' => 'inactive']))
+            ->assertOk()
+            ->assertSee($inactiveTeacher->name)
+            ->assertDontSee($activeTeacher->name);
+
+        $this->get(route('teachers', ['employment_status' => 'all']))
+            ->assertOk()
+            ->assertSee($activeTeacher->name)
+            ->assertSee($inactiveTeacher->name);
     }
 
     private function createAdmin(string $role = 'superadmin'): Admin
@@ -2099,6 +2164,7 @@ class CmsAdminTest extends TestCase
             'summary' => null,
             'image_path' => null,
             'status' => 'published',
+            'employment_status' => 'active',
             'sort_order' => 0,
             'published_at' => now(),
         ];
@@ -2117,6 +2183,7 @@ class CmsAdminTest extends TestCase
             'slug' => 'guru-payload',
             'summary' => 'Ringkasan',
             'status' => 'published',
+            'employment_status' => 'active',
             'metadata' => [
                 'position' => 'Guru Payload',
                 'education' => 'S1',

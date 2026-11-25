@@ -41,6 +41,9 @@
                         {{ $teacher->position ?: $teacher->category }}
                     </span>
                 @endif
+                <span class="educator-card-status educator-card-status--{{ $teacher->isActive() ? 'active' : 'inactive' }}">
+                    {{ $teacher->employmentStatusLabel() }}
+                </span>
             </span>
         @endif
     </button>
@@ -76,22 +79,24 @@
             <p class="staff-profile-eyebrow">Profil Pendidik &amp; Kependidikan</p>
             <h2 id="{{ $profileId }}-name">{{ $profileName }}</h2>
 
-            @if ($profilePosition || $profileCategory)
-                <div class="staff-profile-tags">
-                    @if ($profilePosition)
-                        <span class="staff-profile-role">
-                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path d="M8 7V5.8A1.8 1.8 0 0 1 9.8 4h4.4A1.8 1.8 0 0 1 16 5.8V7M4 8.5h16v10A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5v-10ZM4 12h16M10 12v2h4v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                            {{ $profilePosition }}
-                        </span>
-                    @endif
+            <div class="staff-profile-tags">
+                @if ($profilePosition)
+                    <span class="staff-profile-role">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M8 7V5.8A1.8 1.8 0 0 1 9.8 4h4.4A1.8 1.8 0 0 1 16 5.8V7M4 8.5h16v10A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5v-10ZM4 12h16M10 12v2h4v-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        {{ $profilePosition }}
+                    </span>
+                @endif
 
-                    @if ($profileCategory)
-                        <span class="staff-profile-category">{{ $profileCategory }}</span>
-                    @endif
-                </div>
-            @endif
+                @if ($profileCategory)
+                    <span class="staff-profile-category">{{ $profileCategory }}</span>
+                @endif
+
+                <span class="staff-profile-status staff-profile-status--{{ $teacher->isActive() ? 'active' : 'inactive' }}">
+                    {{ $teacher->employmentStatusLabel() }}
+                </span>
+            </div>
 
             @if ($profileSummary)
                 <div class="staff-profile-summary">

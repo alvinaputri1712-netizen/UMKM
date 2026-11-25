@@ -47,6 +47,7 @@
                                 src="{{ $schoolImage }}"
                                 alt="{{ $profileImageAlt }}"
                                 loading="lazy"
+                                decoding="async"
                             >
                         </figure>
                     @endif

@@ -69,9 +69,10 @@
                     <span class="spmb-hero__accent" aria-hidden="true"></span>
                     <figure class="spmb-hero__photo">
                         <img
-                            src="{{ asset('images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png') }}"
+                            src="{{ asset('images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp') }}"
                             alt="Gedung SMK Islamiyah Ciputat"
                             fetchpriority="high"
+                            decoding="async"
                         >
                     </figure>
                 </div>

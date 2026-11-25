@@ -65,7 +65,7 @@
                 </div>
                 <figure class="program-hero__image">
                     @if ($programImage)
-                        <img src="{{ $programImage }}" alt="Program keahlian {{ $program->title }}" fetchpriority="high">
+                        <img src="{{ $programImage }}" alt="Program keahlian {{ $program->title }}" fetchpriority="high" decoding="async">
                     @else
                         <div class="program-hero__placeholder" role="img" aria-label="Foto Program Keahlian {{ $program->title }}">
                             <i data-lucide="graduation-cap" aria-hidden="true"></i>
@@ -95,7 +95,7 @@
                 <section class="program-about" id="program-about" aria-label="Informasi lengkap {{ $program->title }}">
                     @if ($aboutImage)
                         <figure class="program-about__image">
-                            <img src="{{ $aboutImage }}" alt="{{ $programPhotos->first()?->title ?: 'Kegiatan Program '.$program->title }}" loading="lazy">
+                            <img src="{{ $aboutImage }}" alt="{{ $programPhotos->first()?->title ?: 'Kegiatan Program '.$program->title }}" loading="lazy" decoding="async">
                         </figure>
                     @endif
 

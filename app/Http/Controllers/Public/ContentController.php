@@ -40,12 +40,15 @@ class ContentController extends Controller
     {
         $filters = $request->validate([
             'category' => ['nullable', 'string', 'in:all,guru,kependidikan'],
+            'employment_status' => ['nullable', 'string', 'in:all,active,inactive'],
             'search' => ['nullable', 'string', 'max:100'],
         ], [
             'category.in' => 'Filter kategori tidak valid.',
+            'employment_status.in' => 'Filter status keaktifan tidak valid.',
             'search.max' => 'Pencarian maksimal 100 karakter.',
         ]);
         $category = $filters['category'] ?? 'all';
+        $employmentStatus = $filters['employment_status'] ?? 'all';
         $search = trim($filters['search'] ?? '');
 
         $query = Teacher::query()
@@ -55,6 +58,9 @@ class ContentController extends Controller
             })
             ->when($category === 'kependidikan', function (Builder $query): void {
                 $query->where('category', 'Tenaga Kependidikan');
+            })
+            ->when(in_array($employmentStatus, ['active', 'inactive'], true), function (Builder $query) use ($employmentStatus): void {
+                $query->where('employment_status', $employmentStatus);
             })
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where('name', 'like', '%'.$search.'%');
@@ -68,6 +74,7 @@ class ContentController extends Controller
         return view('pages.teachers', [
             'teachers' => $teachers,
             'activeCategory' => $category,
+            'activeEmploymentStatus' => $employmentStatus,
             'searchTerm' => $search,
         ]);
     }

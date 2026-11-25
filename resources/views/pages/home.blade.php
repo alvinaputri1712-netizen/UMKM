@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', $siteSettings['seo.title'])
 @section('meta_description', $siteSettings['seo.description'])
@@ -24,7 +24,7 @@
                         <span class="school-hero__accent" aria-hidden="true"></span>
                         <span class="school-hero__outline" aria-hidden="true"></span>
                         <figure class="school-hero__photo">
-                            <img class="school-hero__background" src="{{ $siteConfiguration->imageUrl($siteSettings['home.hero.image']) }}" alt="{{ $siteSettings['home.hero.image_alt'] }}" fetchpriority="high">
+                            <img class="school-hero__background" src="{{ $siteConfiguration->imageUrl($siteSettings['home.hero.image']) }}" alt="{{ $siteSettings['home.hero.image_alt'] }}" fetchpriority="high" decoding="async">
                             <span class="school-hero__shade" aria-hidden="true"></span>
                         </figure>
                         @if ($siteSettings['home.hero.badge'])
@@ -81,7 +81,7 @@
                     </div>
                     @if ($siteSettings['home.about.image'])
                         <figure class="m-0 mt-6 aspect-[1.55/1] overflow-hidden sm:mt-8 sm:aspect-[2.2/1] md:mt-6 md:aspect-[2.8/1] lg:mt-5 lg:aspect-[3.2/1]">
-                            <img class="h-full w-full object-cover object-[center_62%]" src="{{ $siteConfiguration->imageUrl($siteSettings['home.about.image']) }}" alt="{{ $siteSettings['home.about.image_alt'] }}" loading="lazy">
+                            <img class="h-full w-full object-cover object-[center_62%]" src="{{ $siteConfiguration->imageUrl($siteSettings['home.about.image']) }}" alt="{{ $siteSettings['home.about.image_alt'] }}" loading="lazy" decoding="async">
                         </figure>
                     @endif
                 </div>
@@ -117,7 +117,7 @@
                             <div class="program-card-content" id="{{ $programId }}" role="region" aria-label="Informasi program {{ $program->title }}" @if (! $loop->first) hidden @endif>
                                 @if ($program->image_path)
                                     <figure class="program-card-visual">
-                                        <img src="{{ $siteConfiguration->imageUrl($program->image_path) }}" alt="Foto {{ $program->title }}" loading="lazy">
+                                        <img src="{{ $siteConfiguration->imageUrl($program->image_path) }}" alt="Foto {{ $program->title }}" loading="lazy" decoding="async">
                                     </figure>
                                 @else
                                     <figure class="program-card-visual program-card-visual-placeholder" role="img" aria-label="Visual program {{ $program->title }}">
@@ -128,7 +128,7 @@
                                     <span class="program-code">{{ data_get($program->metadata, 'abbreviation', $program->title) }}</span>
                                     <h3>{{ $program->title }}</h3>
                                     <p>{{ \Illuminate\Support\Str::limit($program->summary ?? '', 80) }}</p>
-                                    <a href="{{ route('program.show', $program->slug) }}">Pelajari program <span aria-hidden="true">↗</span></a>
+                                    <a href="{{ route('program.show', $program->slug) }}">Pelajari program <span aria-hidden="true">â†—</span></a>
                                 </div>
                             </div>
                         </article>
@@ -149,14 +149,14 @@
                         <div class="principal-portrait">
                             <span class="principal-portrait-frame" aria-hidden="true">
                                 @if ($principalWelcome->image_path)
-                                    <img class="principal-portrait-image" src="{{ $siteConfiguration->imageUrl($principalWelcome->image_path) }}" alt="">
+                                    <img class="principal-portrait-image" src="{{ $siteConfiguration->imageUrl($principalWelcome->image_path) }}" alt="" loading="lazy" decoding="async">
                                 @else
                                     <span class="teacher-placeholder-photo"><span class="teacher-placeholder-person"></span></span>
                                 @endif
                             </span>
                             @if (filled(data_get($principalWelcome->metadata, 'name')))
                                 <span class="principal-name-badge">
-                                    <span class="principal-name-badge__logo"><img src="{{ asset('images/logo/logo.PNG') }}" alt=""></span>
+                                    <span class="principal-name-badge__logo"><img src="{{ asset('images/logo/logo.webp') }}" alt="" decoding="async"></span>
                                     <span class="principal-name-badge__divider" aria-hidden="true"></span>
                                     <span class="principal-name-badge__copy">
                                         <strong>{{ data_get($principalWelcome->metadata, 'name') }}</strong>
@@ -177,7 +177,7 @@
                             @if (filled(data_get($principalWelcome->metadata, 'description')))
                                 <p class="principal-supporting-copy">{{ data_get($principalWelcome->metadata, 'description') }}</p>
                             @endif
-                            <a class="principal-about-link" href="{{ route('about') }}">Kenali sekolah kami <span aria-hidden="true">→</span></a>
+                            <a class="principal-about-link" href="{{ route('about') }}">Kenali sekolah kami <span aria-hidden="true">â†’</span></a>
                         </div>
                     </article>
                 @endforeach
@@ -189,7 +189,7 @@
         <section
             class="teacher-section educator-lanyard-section"
             aria-labelledby="teacher-section-title"
-            style="--educator-motif-primary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik1.png') }}'); --educator-motif-secondary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik2.png') }}')"
+            style="--educator-motif-primary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik1.webp') }}'); --educator-motif-secondary: url('{{ asset('images/bagorundmotivtenagapendidik/tenagapendidik2.webp') }}')"
         >
             <div class="container educator-lanyard-inner">
                 <div class="educator-lanyard-copy">
@@ -204,14 +204,14 @@
                         <h2 class="educator-lanyard-headline" id="teacher-section-title">{{ $siteSettings['home.teachers.heading'] }}</h2>
                         <span class="educator-lanyard-title-rule" aria-hidden="true"></span>
                         <p class="educator-lanyard-description">{{ $siteSettings['home.teachers.description'] }}</p>
-                        <a class="educator-lanyard-cta" href="{{ route('teachers') }}">Lihat semua tenaga pendidik <span aria-hidden="true">→</span></a>
+                        <a class="educator-lanyard-cta" href="{{ route('teachers') }}">Lihat semua tenaga pendidik <span aria-hidden="true">â†’</span></a>
                     </div>
                     <figure class="educator-lanyard-hero-image">
                         @php
                             $teacherSectionImage = $siteSettings['home.teachers.image']
-                                ?: 'images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png';
+                                ?: 'images/bagorundmotivtenagapendidik/bagorundtenagapendidik.webp';
                         @endphp
-                        <img src="{{ $siteConfiguration->imageUrl($teacherSectionImage) }}" alt="Gedung SMK Islamiyah Ciputat" loading="lazy">
+                        <img src="{{ $siteConfiguration->imageUrl($teacherSectionImage) }}" alt="Gedung SMK Islamiyah Ciputat" loading="lazy" decoding="async">
                     </figure>
                 </div>
                 <div class="educator-lanyard-grid" aria-label="Galeri tenaga pendidik">
@@ -236,40 +236,13 @@
     @if ($siteSettings['home.news.visible'])
         <section class="news-section section" aria-label="Berita Informasi Sekolah">
             <div class="container">
-                <div class="news-section-heading">
-                    <div class="news-section-heading__copy">
-                        <div class="news-section-heading__eyebrow">
-                            <span class="news-section-label">BERITA &amp; INFORMASI</span>
-                            <img
-                                class="news-section-heading__rule"
-                                src="{{ asset('images/motivberita/garis.png') }}"
-                                alt=""
-                                aria-hidden="true"
-                            >
-                        </div>
-                        <h2 id="latest-news-heading">Berita SMK Islamiyah Ciputat</h2>
-                        <p>Informasi terbaru, kegiatan, prestasi, dan perkembangan sekolah.</p>
-                    </div>
-                    <div class="news-section-heading__visual" aria-hidden="true">
-                        <img
-                            class="news-section-heading__building"
-                            src="{{ asset('images/bagorundmotivtenagapendidik/bagorundtenagapendidik.png') }}"
-                            alt=""
-                            loading="lazy"
-                        >
-                        <img
-                            class="news-section-heading__diagonal"
-                            src="{{ asset('images/motivberita/123.png') }}"
-                            alt=""
-                        >
-                    </div>
-                    <img
-                        class="news-section-heading__wave"
-                        src="{{ asset('images/motivberita/had.png') }}"
-                        alt=""
-                        aria-hidden="true"
-                    >
-                </div>
+                <header class="news-home-masthead">
+                    <span class="news-home-masthead__eyebrow">KANAL WARTA &amp; LIPUTAN TERPADU</span>
+                    <h2 id="latest-news-heading">
+                        BERITA &amp; INFORMASI <span>SMK ISLAMIYAH CIPUTAT</span>
+                    </h2>
+                    <p>Informasi terbaru, kegiatan, prestasi, dan perkembangan sekolah.</p>
+                </header>
                 @if ($carouselNews->isNotEmpty())
                     <div class="news-home-editorial" data-news-home-layout>
                         @if ($carouselNews->isNotEmpty())
@@ -291,13 +264,14 @@
                                                 src="{{ $siteConfiguration->imageUrl($mainMediaPreview['type'] === 'image' ? $mainMediaPreview['src'] : $mainMediaPreview['poster']) }}"
                                                 alt="{{ $mainMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $mainArticle->title }}"
                                                 fetchpriority="high"
+                                                decoding="async"
                                                 data-news-image
                                             >
                                         </figure>
                                     @else
                                         <span class="news-featured__fallback" aria-hidden="true">
                                             @if ($mainMediaPreview && $mainMediaPreview['type'] === 'video')
-                                                <span>▶</span>
+                                                <span>â–¶</span>
                                             @else
                                                 <i data-lucide="newspaper"></i>
                                             @endif
@@ -307,7 +281,6 @@
                                         @if ($mainArticle->category)
                                             <span class="news-card-category">{{ $mainArticle->category }}</span>
                                         @endif
-                                        <h2>{{ $mainArticle->title }}</h2>
                                         <div class="news-featured__meta">
                                             @if ($mainArticle->published_at)
                                                 <span>
@@ -322,13 +295,10 @@
                                                 </span>
                                             @endif
                                         </div>
+                                        <h2>{{ $mainArticle->title }}</h2>
                                         @if ($mainArticle->summary)
                                             <p>{{ $mainArticle->summary }}</p>
                                         @endif
-                                        <span class="news-featured__action">
-                                            Baca Selengkapnya
-                                            <i data-lucide="arrow-right" aria-hidden="true"></i>
-                                        </span>
                                     </div>
                                 </a>
                             </article>
@@ -351,13 +321,14 @@
                                                         src="{{ $siteConfiguration->imageUrl($articleMediaPreview['type'] === 'image' ? $articleMediaPreview['src'] : $articleMediaPreview['poster']) }}"
                                                         alt="{{ $articleMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
                                                         loading="lazy"
+                                                        decoding="async"
                                                         data-news-image
                                                     >
                                                 </figure>
                                             @else
                                                 <span class="news-card__image news-card__image--empty" aria-hidden="true">
                                                     @if ($articleMediaPreview && $articleMediaPreview['type'] === 'video')
-                                                        <span>▶</span>
+                                                        <span>â–¶</span>
                                                     @else
                                                         <i data-lucide="newspaper"></i>
                                                     @endif
@@ -390,10 +361,10 @@
                             </div>
                         @endif
 
-                        @if ($belowCarouselNews->isNotEmpty() || $showAllNewsLink)
+                        @if ($belowCarouselNews->count() > 0 || $showAllNewsLink)
                             <section class="news-below-carousel" aria-label="Berita terbaru">
                                 <header class="news-below-carousel__heading">
-                                    <h3>Berita Terbaru</h3>
+                                    <h3>Berita Terkini</h3>
                                     <span class="news-below-carousel__rule" aria-hidden="true"></span>
                                     @if ($showAllNewsLink)
                                         <a class="news-more-link" href="{{ route('news.index') }}">
@@ -402,53 +373,65 @@
                                         </a>
                                     @endif
                                 </header>
-                                @if ($belowCarouselNews->isNotEmpty())
-                                    <div class="news-carousel">
-                                        <div class="news-below-carousel__grid" data-news-track>
-                                            @foreach ($belowCarouselNews as $article)
-                                                @php
-                                                    $belowMediaPreview = $article->media_items[0] ?? null;
-                                                @endphp
-                                                <article class="news-below-carousel-card" data-news-below-carousel-item>
-                                                    <a class="news-below-carousel-card__link" href="{{ route('news.show', $article->slug) }}">
-                                                        <figure class="news-below-carousel-card__media">
-                                                            @if ($belowMediaPreview && ($belowMediaPreview['type'] === 'image' || $belowMediaPreview['poster']))
-                                                                <img
-                                                                    class="news-below-carousel-card__image"
-                                                                    src="{{ $siteConfiguration->imageUrl($belowMediaPreview['type'] === 'image' ? $belowMediaPreview['src'] : $belowMediaPreview['poster']) }}"
-                                                                    alt="{{ $belowMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
-                                                                    loading="lazy"
-                                                                >
-                                                            @else
-                                                                <span class="news-below-carousel-card__placeholder" aria-hidden="true">
-                                                                    <i data-lucide="newspaper"></i>
-                                                                </span>
-                                                            @endif
+                                @if ($belowCarouselNews->count() > 0)
+                                    <div class="news-below-carousel__grid">
+                                        @foreach ($belowCarouselNews as $article)
+                                            @php
+                                                $belowMediaPreview = $article->media_items[0] ?? null;
+                                            @endphp
+                                            <article class="news-below-carousel-card" data-news-below-carousel-item>
+                                                <a class="news-below-carousel-card__link" href="{{ route('news.show', $article->slug) }}">
+                                                    <figure class="news-below-carousel-card__media">
+                                                        @if ($belowMediaPreview && ($belowMediaPreview['type'] === 'image' || $belowMediaPreview['poster']))
+                                                            <img
+                                                                class="news-below-carousel-card__image"
+                                                                src="{{ $siteConfiguration->imageUrl($belowMediaPreview['type'] === 'image' ? $belowMediaPreview['src'] : $belowMediaPreview['poster']) }}"
+                                                                alt="{{ $belowMediaPreview['type'] === 'image' ? 'Foto' : 'Pratinjau video' }} {{ $article->title }}"
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                            >
+                                                        @else
+                                                            <span class="news-below-carousel-card__placeholder" aria-hidden="true">
+                                                                <i data-lucide="newspaper"></i>
+                                                            </span>
+                                                        @endif
+                                                    </figure>
+                                                    <span class="news-below-carousel-card__copy">
+                                                        <span class="news-below-carousel-card__meta">
                                                             @if ($article->category)
                                                                 <span class="news-below-carousel-card__category">{{ $article->category }}</span>
                                                             @endif
-                                                        </figure>
-                                                        <span class="news-below-carousel-card__copy">
-                                                            <strong>{{ $article->title }}</strong>
                                                             @if ($article->published_at)
                                                                 <time datetime="{{ $article->published_at->toDateString() }}">{{ $article->published_at->format('d F Y') }}</time>
                                                             @endif
                                                         </span>
-                                                    </a>
-                                                </article>
-                                            @endforeach
-                                        </div>
-                                        <div class="news-carousel-controls">
-                                            <div class="news-carousel-pages" data-news-pages role="group" aria-label="Halaman berita"></div>
-                                            <div class="news-carousel-arrows">
-                                                <button class="news-carousel-button" type="button" data-news-scroll="left" aria-label="Berita sebelumnya">
-                                                    <i data-lucide="arrow-left" aria-hidden="true"></i>
-                                                </button>
-                                                <button class="news-carousel-button" type="button" data-news-scroll="right" aria-label="Berita berikutnya">
-                                                    <i data-lucide="arrow-right" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
+                                                        <strong>{{ $article->title }}</strong>
+                                                        @if ($article->summary)
+                                                            <span class="news-below-carousel-card__summary">{{ $article->summary }}</span>
+                                                        @endif
+                                                    </span>
+                                                </a>
+                                            </article>
+                                        @endforeach
+                                    </div>
+                                    <div class="news-pagination news-below-carousel__pagination">
+                                        @if ($belowCarouselNews->hasPages())
+                                            {{ $belowCarouselNews->onEachSide(1)->links() }}
+                                        @else
+                                            <nav role="navigation" aria-label="Pagination Navigation">
+                                                <div class="news-below-carousel__pagination-items">
+                                                    <span aria-disabled="true" aria-label="{{ __('pagination.previous') }}">
+                                                        <span>{{ __('pagination.previous') }}</span>
+                                                    </span>
+                                                    <span aria-current="page">
+                                                        <span>1</span>
+                                                    </span>
+                                                    <span aria-disabled="true" aria-label="{{ __('pagination.next') }}">
+                                                        <span>{{ __('pagination.next') }}</span>
+                                                    </span>
+                                                </div>
+                                            </nav>
+                                        @endif
                                     </div>
                                 @endif
                             </section>
@@ -472,12 +455,12 @@
                         <a href="{{ route('bkk.jobs') }}">
                             <span class="bkk-link-icon" aria-hidden="true"><i data-lucide="briefcase-business"></i></span>
                             <span class="bkk-link-copy"><strong>Lowongan pekerjaan</strong><small>Informasi lowongan pekerjaan</small></span>
-                            <span class="bkk-link-arrow" aria-hidden="true">›</span>
+                            <span class="bkk-link-arrow" aria-hidden="true">â€º</span>
                         </a>
                         <a href="{{ route('bkk.tracer-study') }}">
                             <span class="bkk-link-icon" aria-hidden="true"><i data-lucide="chart-no-axes-column-increasing"></i></span>
                             <span class="bkk-link-copy"><strong>Tracer study</strong><small>Informasi alumni setelah lulus</small></span>
-                            <span class="bkk-link-arrow" aria-hidden="true">›</span>
+                            <span class="bkk-link-arrow" aria-hidden="true">â€º</span>
                         </a>
                     </div>
                 </div>
@@ -486,7 +469,7 @@
                         <span class="bkk-image-accent" aria-hidden="true"></span>
                         <span class="bkk-image-outline" aria-hidden="true"></span>
                         <div class="bkk-image-wrap">
-                            <img src="{{ $siteConfiguration->imageUrl($siteSettings['home.bkk.image']) }}" alt="Kegiatan belajar di sekolah" loading="lazy">
+                            <img src="{{ $siteConfiguration->imageUrl($siteSettings['home.bkk.image']) }}" alt="Kegiatan belajar di sekolah" loading="lazy" decoding="async">
                         </div>
                         <div class="bkk-image-badge"><strong>2 layanan</strong><span>Informasi BKK untuk alumni</span></div>
                     </div>
@@ -531,3 +514,4 @@
         </section>
     @endif
 @endsection
+

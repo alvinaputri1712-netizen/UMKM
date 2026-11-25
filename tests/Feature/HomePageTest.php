@@ -210,6 +210,7 @@ class HomePageTest extends TestCase
                 'status' => 'published',
                 'published_at' => now()->subMinutes($index),
                 'image_path' => "/images/berita-{$index}.jpg",
+                'summary' => "Ringkasan Berita {$index}",
                 'metadata' => ['homepage_group' => $placement],
             ]);
         }
@@ -225,30 +226,27 @@ class HomePageTest extends TestCase
 
         $response->assertOk()
             ->assertSee('data-news-home-layout', false)
-            ->assertSee('BERITA & INFORMASI')
-            ->assertSee('Berita SMK Islamiyah Ciputat')
+            ->assertSee('news-home-masthead', false)
+            ->assertSee('KANAL WARTA &amp; LIPUTAN TERPADU', false)
+            ->assertSee('BERITA &amp; INFORMASI', false)
+            ->assertSee('SMK ISLAMIYAH CIPUTAT')
             ->assertSee('Informasi terbaru, kegiatan, prestasi, dan perkembangan sekolah.')
-            ->assertSee('news-section-heading__visual', false)
-            ->assertSee('news-section-heading__diagonal', false)
-            ->assertSee('news-section-heading__wave', false)
-            ->assertSee('bagorundtenagapendidik.png')
-            ->assertSee('images/motivberita/garis.png')
-            ->assertSee('images/motivberita/123.png')
-            ->assertSee('images/motivberita/had.png')
-            ->assertSee('data-news-track', false)
-            ->assertSee('data-news-scroll="left"', false)
-            ->assertSee('data-news-scroll="right"', false)
+            ->assertSee('news-below-carousel__pagination', false)
+            ->assertSee('home_news_page=2', false)
             ->assertSee('Berita Beranda 1')
             ->assertSee('Berita Beranda 2')
             ->assertSee('Berita Beranda 3')
             ->assertSee('Berita Beranda 4')
+            ->assertSee('Ringkasan Berita 5')
             ->assertDontSee('Berita Sekolah Lainnya')
             ->assertDontSee('Berita Populer')
             ->assertDontSee('Berita Hanya di Halaman Berita');
 
         $response->assertSee('Berita Beranda 5')
             ->assertSee('Berita Beranda 8')
-            ->assertDontSee('Berita Beranda 9')
+            ->assertSee('Berita Beranda 9')
+            ->assertSee('Berita Beranda 12')
+            ->assertDontSee('Berita Beranda 13')
             ->assertDontSee('Berita Beranda 16');
 
         $content = $response->getContent() ?? '';
@@ -256,8 +254,19 @@ class HomePageTest extends TestCase
         $this->assertSame(4, substr_count($content, 'data-news-home-item'));
         $this->assertSame(1, substr_count($content, 'class="news-featured"'));
         $this->assertSame(3, substr_count($content, 'class="news-card"'));
-        $this->assertSame(4, substr_count($content, 'data-news-below-carousel-item'));
+        $this->assertSame(8, substr_count($content, 'data-news-below-carousel-item'));
+        $this->assertSame(8, substr_count($content, 'news-below-carousel-card__meta'));
         $this->assertSame(0, substr_count($content, 'data-news-sidebar-item'));
+
+        $pageTwoResponse = $this->get(route('home', ['home_news_page' => 2]));
+
+        $pageTwoResponse->assertOk()
+            ->assertSee('Berita Beranda 13')
+            ->assertSee('Berita Beranda 16')
+            ->assertDontSee('Berita Beranda 12');
+
+        $pageTwoContent = $pageTwoResponse->getContent() ?? '';
+        $this->assertSame(4, substr_count($pageTwoContent, 'data-news-below-carousel-item'));
 
         $this->get(route('news.index'))
             ->assertOk()
@@ -295,12 +304,13 @@ class HomePageTest extends TestCase
         }
         $response->assertSee('Berita Otomatis 4')
             ->assertSee('Berita Otomatis 7')
-            ->assertDontSee('Berita Otomatis 8')
+            ->assertSee('Berita Otomatis 11')
+            ->assertDontSee('Berita Otomatis 12')
             ->assertDontSee('Berita Otomatis 14');
 
         $content = $response->getContent() ?? '';
         $this->assertSame(4, substr_count($content, 'data-news-home-item'));
-        $this->assertSame(4, substr_count($content, 'data-news-below-carousel-item'));
+        $this->assertSame(8, substr_count($content, 'data-news-below-carousel-item'));
         $this->assertSame(0, substr_count($content, 'data-news-sidebar-item'));
     }
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -6,14 +6,15 @@
     <meta name="robots" content="noindex,nofollow">
     <meta name="theme-color" content="#101b35">
     <title>Buat Akun Superadmin | SMK Islamiyah Ciputat</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="icon" href="{{ asset('images/logo/logo.webp') }}" type="image/webp">
+    @vite(['resources/css/admin-app.css', 'resources/js/app.js'])
 </head>
 <body class="setup-body">
     <main class="setup-form-layout">
         <section class="setup-brand-panel">
             <a href="{{ route('home') }}" class="setup-brand" aria-label="SMK Islamiyah Ciputat">
-                <img src="{{ asset('images/logo/logo.PNG') }}" alt="Logo SMK Islamiyah Ciputat">
-                <span><strong>SMK ISLAMIYAH</strong><small>CIPUTAT · SISTEM INFORMASI</small></span>
+                <img src="{{ asset('images/logo/logo.webp') }}" alt="Logo SMK Islamiyah Ciputat">
+                <span><strong>SMK ISLAMIYAH</strong><small>CIPUTAT Â· SISTEM INFORMASI</small></span>
             </a>
 
             <div class="setup-brand-copy">
@@ -38,7 +39,7 @@
                 <div class="setup-illustration-dot setup-illustration-dot-two"></div>
             </div>
 
-            <p class="setup-panel-footer">PENYIAPAN SISTEM · LANGKAH 02 DARI 03</p>
+            <p class="setup-panel-footer">PENYIAPAN SISTEM Â· LANGKAH 02 DARI 03</p>
         </section>
 
         <section class="setup-form-panel" aria-labelledby="setup-form-title">
@@ -148,3 +149,5 @@
     </main>
 </body>
 </html>
+
+

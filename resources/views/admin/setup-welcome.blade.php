@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -6,7 +6,8 @@
     <meta name="robots" content="noindex,nofollow">
     <meta name="theme-color" content="#101b35">
     <title>Penyiapan Awal | SMK Islamiyah Ciputat</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="icon" href="{{ asset('images/logo/logo.webp') }}" type="image/webp">
+    @vite(['resources/css/admin-app.css', 'resources/js/app.js'])
 </head>
 <body class="setup-body setup-body-dark">
     <main class="setup-welcome">
@@ -16,8 +17,8 @@
 
         <div class="setup-welcome-main">
             <a href="{{ route('home') }}" class="setup-brand setup-brand-welcome">
-                <img src="{{ asset('images/logo/logo.PNG') }}" alt="Logo SMK Islamiyah Ciputat">
-                <span><strong>SMK ISLAMIYAH</strong><small>CIPUTAT · SISTEM INFORMASI</small></span>
+                <img src="{{ asset('images/logo/logo.webp') }}" alt="Logo SMK Islamiyah Ciputat">
+                <span><strong>SMK ISLAMIYAH</strong><small>CIPUTAT Â· SISTEM INFORMASI</small></span>
             </a>
 
             <section class="setup-welcome-copy">
@@ -58,3 +59,5 @@
     </main>
 </body>
 </html>
+
+

@@ -42,6 +42,7 @@
                         src="{{ asset('images/10.jpeg') }}"
                         alt="Siswa SMK Islamiyah Ciputat berfoto bersama di lingkungan sekolah"
                         fetchpriority="high"
+                        decoding="async"
                     >
                 </div>
             </header>

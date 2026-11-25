@@ -1,18 +1,19 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>@yield('title', 'Admin CMS') | SMK Islamiyah Ciputat</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="icon" href="{{ asset('images/logo/logo.webp') }}" type="image/webp">
+    @vite(['resources/css/admin-app.css', 'resources/js/app.js'])
 </head>
 <body class="admin-body">
     <input class="admin-drawer-toggle" type="checkbox" id="admin-drawer-toggle" aria-label="Buka navigasi admin">
 
     <aside class="admin-sidebar" id="admin-sidebar">
         <a href="{{ route('admin.dashboard') }}" class="admin-brand" title="SMK Islamiyah Ciputat">
-            <img src="{{ asset('images/logo/logo.PNG') }}" alt="" class="admin-brand-logo">
+            <img src="{{ asset('images/logo/logo.webp') }}" alt="" class="admin-brand-logo">
             <span class="admin-brand-copy">
                 <strong>SMK Islamiyah</strong>
                 <small>Content Management</small>
@@ -224,7 +225,7 @@
                     state.ids.forEach((id) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = 'ids[]'; i.value = id; idsWrap.appendChild(i); });
                     if (countEl) countEl.textContent = state.ids.length;
                     if (summaryEl) summaryEl.textContent = state.ids.length + ' data terpilih akan dihapus permanen.';
-                    if (namesEl) namesEl.innerHTML = state.names.slice(0, 12).map((n) => '<li>' + n.replace(/</g, '&lt;') + '</li>').join('') + (state.names.length > 12 ? '<li>…dan ' + (state.names.length - 12) + ' data lainnya.</li>' : '');
+                    if (namesEl) namesEl.innerHTML = state.names.slice(0, 12).map((n) => '<li>' + n.replace(/</g, '&lt;') + '</li>').join('') + (state.names.length > 12 ? '<li>â€¦dan ' + (state.names.length - 12) + ' data lainnya.</li>' : '');
                 }
                 if (submit) submit.disabled = false;
                 openModal(modal);
@@ -304,7 +305,7 @@
         <form method="dialog" class="admin-media-editor-card">
             <div class="admin-card-heading">
                 <div><h2>Edit foto</h2><p>Geser foto, atur crop dan penyesuaian ringan sebelum menyimpan.</p></div>
-                <button type="submit" class="admin-icon-button" aria-label="Tutup editor">×</button>
+                <button type="submit" class="admin-icon-button" aria-label="Tutup editor">Ã—</button>
             </div>
             <canvas width="720" height="480" data-image-editor-canvas></canvas>
             <div class="admin-media-editor-controls">
@@ -324,7 +325,7 @@
                 <label>Saturation <input type="range" min="70" max="130" value="100" data-image-saturation></label>
             </div>
             <div class="admin-media-editor-actions">
-                <button type="button" class="admin-button admin-button-secondary" data-image-rotate>Putar 90°</button>
+                <button type="button" class="admin-button admin-button-secondary" data-image-rotate>Putar 90Â°</button>
                 <button type="button" class="admin-button admin-button-secondary" data-image-flip-horizontal>Flip horizontal</button>
                 <button type="button" class="admin-button admin-button-secondary" data-image-flip-vertical>Flip vertical</button>
                 <button type="button" class="admin-button admin-button-secondary" data-image-reset>Reset foto</button>
@@ -335,3 +336,5 @@
     </dialog>
 </body>
 </html>
+
+

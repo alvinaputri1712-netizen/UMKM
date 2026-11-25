@@ -69,8 +69,20 @@
         <meta name="google-site-verification" content="{{ $googleSiteVerification }}">
     @endif
     <link rel="canonical" href="{{ $pageCanonical }}">
-    @if ($siteSettings['identity.favicon'])
-        <link rel="icon" href="{{ $siteConfiguration->imageUrl($siteSettings['identity.favicon']) }}">
+    @php
+        $faviconPath = $siteSettings['identity.favicon'] ?: $siteSettings['identity.logo'];
+        $faviconUrl = $siteConfiguration->imageUrl($faviconPath);
+        $faviconExtension = strtolower(pathinfo((string) $faviconPath, PATHINFO_EXTENSION));
+        $faviconType = match ($faviconExtension) {
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/x-icon',
+            default => null,
+        };
+    @endphp
+    @if ($faviconUrl)
+        <link rel="icon" href="{{ $faviconUrl }}" @if ($faviconType) type="{{ $faviconType }}" @endif>
     @endif
 
     <meta property="og:locale" content="id_ID">
